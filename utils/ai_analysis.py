@@ -37,36 +37,38 @@ def analyze_lotto_patterns(history_text, user_question, api_key):
 
     client = genai.Client(api_key=api_key)
     
-    # 모델 호출 (2.0-flash -> 2.0-flash-lite fallback)
-    # 2.0-flash가 가장 빠르고 성능이 좋음
-    primary_model = 'gemini-2.0-flash'
-    fallback_models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash']
+    # 시도할 모델 리스트 (최신순)
+    # 2.0-flash는 현재 프리뷰 단계라 지역이나 계정에 따라 제한될 수 있음
+    models_to_try = [
+        'gemini-2.0-flash', 
+        'gemini-1.5-flash', 
+        'gemini-1.5-flash-8b',
+        'gemini-1.5-pro'
+    ]
     
-    try:
-        response = client.models.generate_content(
-            model=primary_model,
-            contents=prompt
-        )
-        return response.text
-    except Exception as e:
-        error_msg = str(e)
-        # 429 Quota Exceeded 또는 기타 에러 발생 시 fallback 시도
-        if '429' in error_msg or 'RESOURCE_EXHAUSTED' in error_msg or 'NOT_FOUND' in error_msg:
-            print(f'[Gemini API] {primary_model} failed ({error_msg[:50]}...). Trying fallbacks...')
-            
-            for model_name in fallback_models:
-                try:
-                    print(f'[Gemini API] Trying {model_name}...')
-                    response = client.models.generate_content(
-                        model=model_name,
-                        contents=prompt
-                    )
-                    return response.text
-                except Exception as e2:
-                    print(f'[Gemini API] {model_name} failed.')
-                    continue
-            
-            # 모든 fallback 실패 시
-            raise Exception("All Gemini models failed.")
-        else:
-            raise e
+    last_error = None
+    errors = []
+
+    for model_name in models_to_try:
+        try:
+            # print(f'[Gemini API] Trying {model_name}...')
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            if response and response.text:
+                return response.text
+            else:
+                errors.append(f"{model_name}: Empty response")
+        except Exception as e:
+            last_error = str(e)
+            errors.append(f"{model_name}: {last_error}")
+            # 401 Unauthorized 등은 다시 시도해도 가망 없으므로 즉시 중단
+            if '401' in last_error or 'API_KEY_INVALID' in last_error:
+                raise Exception(f"API 키가 올바르지 않습니다: {last_error[:100]}")
+            continue
+    
+    # 모든 모델 시도 후 실패 시
+    error_summary = "; ".join(errors)
+    raise Exception(f"모든 AI 모델 호출에 실패했습니다. (상세: {error_summary[:200]}...)")
+

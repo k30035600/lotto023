@@ -418,6 +418,11 @@ function initializeStats(lottoData) {
 
     // 현재 통계 업데이트
     updateCurrentStats();
+
+    // 월별 평균 차트 렌더링 추가
+    if (typeof renderMonthlyAverageChart === 'function') {
+        renderMonthlyAverageChart(lottoData);
+    }
 }
 
 /**
@@ -1550,41 +1555,24 @@ async function initializeApp() {
             }
         }
 
-        // 기본값 설정 (가장 최근 회차 ~ 1회차)
-        // 사용자가 요청한 1000~1100회 코드로 수정
+        // 기본값 설정 (1회차 ~ 가장 최근 회차)
         if (lotto645Data.length > 0) {
             const startRoundInput = document.getElementById('startRound');
             const endRoundInput = document.getElementById('endRound');
 
-            // 데이터에 1000회와 1100회가 존재하는지 확인
-            const maxRound = lotto645Data[0].round;
-            const minRound = lotto645Data[lotto645Data.length - 1].round;
+            const maxRound = lotto645Data[0].round; // 최신 회차
+            const firstRound = 1; // 시작 회차
 
-            // 1000~1100 범위가 데이터 내에 있으면 설정, 아니면 전체 범위
-            // 로또 데이터는 내림차순 정렬되어 있음
-            // 1000회 1100회 존재 여부는 간단히 범위 체크
+            if (startRoundInput) startRoundInput.value = firstRound;
+            if (endRoundInput) endRoundInput.value = maxRound;
 
-            let targetStart = 1000;
-            let targetEnd = 1100;
+            // 날짜 입력칸 동기화
+            updateRoundDisplay();
 
-            if (targetStart >= minRound && targetEnd <= maxRound) {
-                if (startRoundInput) startRoundInput.value = targetStart;
-                if (endRoundInput) endRoundInput.value = targetEnd;
-
-                // 날짜 입력칸도 동기화 (선택사항)
-                updateRoundDisplay();
-
-                // 해당 범위로 필터링하여 렌더링
-                setTimeout(() => {
-                    updateStatsByDateRange();
-                }, 100);
-            } else {
-                // 범위가 없으면 기존대로 전체 (또는 최신)
-                if (startRoundInput) startRoundInput.value = minRound;
-                if (endRoundInput) endRoundInput.value = maxRound;
-                updateRoundDisplay();
-                renderStats(lotto645Data);
-            }
+            // 전체 범위로 필터링하여 렌더링
+            setTimeout(() => {
+                updateStatsByDateRange();
+            }, 100);
         } else {
             renderStats(lotto645Data);
         }
@@ -3997,8 +3985,23 @@ function setupRangeTypeSelectors() {
     if (startRoundInput) startRoundInput.addEventListener('input', syncRoundToDate);
     if (endRoundInput) endRoundInput.addEventListener('input', syncRoundToDate);
 
-    if (startDateInput) startDateInput.addEventListener('input', syncDateToRound);
-    if (endDateInput) endDateInput.addEventListener('input', syncDateToRound);
+    function handleDateInput(e) {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length > 6) val = val.slice(0, 6);
+        let formatted = '';
+        if (val.length > 4) {
+            formatted = val.slice(0, 2) + '/' + val.slice(2, 4) + '/' + val.slice(4);
+        } else if (val.length > 2) {
+            formatted = val.slice(0, 2) + '/' + val.slice(2);
+        } else {
+            formatted = val;
+        }
+        e.target.value = formatted;
+        syncDateToRound();
+    }
+
+    if (startDateInput) startDateInput.addEventListener('input', handleDateInput);
+    if (endDateInput) endDateInput.addEventListener('input', handleDateInput);
 
     const btn = document.getElementById('selectDateRangeBtn');
     if (btn) {
@@ -4184,6 +4187,11 @@ function updateStatsByDateRange() {
     renderNumberGrid();
     renderViewNumbersList(filteredData);
     updateRoundRangeDisplay();
+
+    // 차트 업데이트: 필터링된 데이터 기반으로 렌더링
+    if (typeof renderMonthlyAverageChart === 'function') {
+        renderMonthlyAverageChart(filteredData);
+    }
 }
 
 /**
@@ -4276,31 +4284,36 @@ function renderStats(lotto645Data) {
  */
 /**
  * 합계 평균 표시 업데이트 (회차별 당첨번호 패널 헤더에 표시)
- * [ 시작회차 ~ 종료회차 (총 N회), 합계평균: 000 ]
+ * [ 0000회 ~ 0000회   [  0000회  기간평균: 000 ]
  */
 function updateAverageSumDisplay(data) {
     const statsHeaderDisplay = document.getElementById('statsHeaderDisplay');
     if (!statsHeaderDisplay) return;
 
     if (!data || data.length === 0) {
-        statsHeaderDisplay.textContent = '[ 데이터 없음 ]';
+        statsHeaderDisplay.textContent = '[ 0000회 ~ 0000회   [  0000회  기간평균: 000 ]';
         return;
     }
+
+    const rounds = data.map(r => Number(r.round)).filter(r => !isNaN(r));
+    const startRound = Math.min(...rounds);
+    const endRound = Math.max(...rounds);
 
     const sums = data.map(round => {
         if (!round.numbers || round.numbers.length === 0) return 0;
         return round.numbers.reduce((acc, num) => acc + (num || 0), 0);
-    });
+    }).filter(s => s > 0);
 
     const average = sums.length > 0 ? Math.round(sums.reduce((acc, sum) => acc + sum, 0) / sums.length) : 0;
     const count = data.length;
+
+    const startStr = startRound.toString().padStart(4, '0');
+    const endStr = endRound.toString().padStart(4, '0');
+    const countStr = count.toString().padStart(4, '0');
     const avgStr = average.toString().padStart(3, '0');
 
-    // 데이터가 회차 내림차순(최신->과거)으로 정렬되어 있다고 가정
-    const startRound = data[data.length - 1].round;
-    const endRound = data[0].round;
-
-    statsHeaderDisplay.textContent = `[ ${startRound}회 ~ ${endRound}회 (${count}회), 합계평균: ${avgStr} ]`;
+    // 요청하신 포맷: [ 0001회 ~ 0100회   0100회   기간평균: 138 ]
+    statsHeaderDisplay.textContent = `[ ${startStr}회 ~ ${endStr}회   ${countStr}회   기간평균: ${avgStr} ]`;
 }
 
 /**
@@ -4419,71 +4432,7 @@ function createRoundLineElement(round) {
  * 회차별 당첨번호 목록 렌더링
  * data 인자가 없으면 전체 데이터 사용
  */
-function renderViewNumbersList(data) {
-    const viewNumbersList = document.getElementById('viewNumbersList');
-    // data가 있으면(필터링된 데이터) 그대로 사용, 없으면 전체 데이터 사용
-    let listData = data || AppState.currentStatsRounds || AppState.allLotto645Data;
 
-    // 현재 렌더링에 사용된 기본 데이터를 상태에 저장 (합계 필터 재적용시 사용)
-    AppState.currentViewNumbersBaseData = listData;
-
-    if (!viewNumbersList || !listData) return;
-
-    // 합계 필터 적용 (sumFilterRound input)
-    const sumFilterEl = document.getElementById('sumFilterRound');
-    if (sumFilterEl) {
-        const sumCriteria = parseInt(sumFilterEl.value, 10);
-
-        // 999: 회차 내림차순(기본) - 별도 처리 없음
-        // 000: 회차 오름차순
-        if (sumCriteria === 0) {
-            // 원본 배열을 정렬하면 안되므로 복사 후 정렬
-            listData = [...listData].sort((a, b) => a.round - b.round);
-        }
-        // 21~255: 해당 합계와 일치하는 회차만 필터링
-        else if (!isNaN(sumCriteria) && sumCriteria >= 21 && sumCriteria <= 255) {
-            listData = listData.filter(round => {
-                const sum = round.numbers.reduce((acc, num) => acc + (num || 0), 0);
-                return sum === sumCriteria;
-            });
-        }
-        // 777: 합계 오름차순, 888: 합계 내림차순 등 추가 로직이 있다면 여기에 구현
-        else if (sumCriteria === 777) {
-            listData = [...listData].sort((a, b) => {
-                const sumA = a.numbers.reduce((sum, n) => sum + n, 0);
-                const sumB = b.numbers.reduce((sum, n) => sum + n, 0);
-                return sumA - sumB;
-            });
-        } else if (sumCriteria === 888) {
-            listData = [...listData].sort((a, b) => {
-                const sumA = a.numbers.reduce((sum, n) => sum + n, 0);
-                const sumB = b.numbers.reduce((sum, n) => sum + n, 0);
-                return sumB - sumA;
-            });
-        }
-        // 그 외 숫자(예: 1000)는 해당 회차 검색으로 처리 (255 초과, 특수코드 제외)
-        else if (sumCriteria > 255 && sumCriteria !== 999) {
-            listData = listData.filter(round => round.round === sumCriteria);
-        }
-    }
-
-    viewNumbersList.innerHTML = '';
-
-    if (listData.length === 0) {
-        viewNumbersList.innerHTML = '<p>데이터가 없습니다.</p>';
-        updateAverageSumDisplay([]);
-        return;
-    }
-
-    // 성능을 위해 상위 100개만 먼저 렌더링하거나, 
-    // 여기서는 전체 렌더링 (데이터 양에 따라 조절 필요)
-    // 일단 전체 렌더링
-    listData.forEach(round => {
-        viewNumbersList.appendChild(createRoundLineElement(round));
-    });
-
-    updateAverageSumDisplay(listData);
-}
 /**
  * 특정 회차(또는 최신) 로또 정보 모달 표시
  * roundNo가 없거나 null이면 최신 회차 조회
@@ -4578,49 +4527,80 @@ function renderViewNumbersList(baseData) {
     const viewNumbersList = document.getElementById('viewNumbersList');
     const sumFilterInput = document.getElementById('sumFilterRound');
     if (!viewNumbersList) return;
-    if (!baseData || baseData.length === 0) {
+
+    // data가 있으면(필터링된 데이터) 그대로 사용, 없으면 전체 데이터 사용
+    let listData = baseData || AppState.currentStatsRounds || AppState.allLotto645Data;
+
+    if (!listData || listData.length === 0) {
         viewNumbersList.innerHTML = '<p>데이터가 없습니다.</p>';
         updateAverageSumDisplay([]);
         return;
     }
+
     if (sumFilterInput) {
         sumFilterInput.min = 0;
-        sumFilterInput.max = 999;
-        sumFilterInput.title = '000=회차↑ 999=회차↓ 777=합계↑ 888=합계↓ 21~255=동일합계';
+        sumFilterInput.max = 9999; // 회차 검색을 위해 최대값 증가
+        sumFilterInput.title = '000=회차↑ 999=회차↓ 777=합계↑ 888=합계↓ 21~255=동일합계 256+=해당회차';
     }
+
     let filterVal = 999;
     if (sumFilterInput && sumFilterInput.value !== '' && !isNaN(parseInt(sumFilterInput.value, 10))) {
         filterVal = parseInt(sumFilterInput.value, 10);
     }
-    const fullData = AppState.allLotto645Data || baseData;
+
     let toDisplay;
+    // 000, 999, 777, 888은 정렬 명령
     if (filterVal === 999 || filterVal === 0 || filterVal === 777 || filterVal === 888) {
-        toDisplay = fullData;
-    } else {
-        toDisplay = fullData.filter(r => {
+        toDisplay = listData;
+    }
+    // 21~255는 합계 필터
+    else if (filterVal >= 21 && filterVal <= 255) {
+        toDisplay = listData.filter(r => {
             if (!r.numbers || r.numbers.length === 0) return false;
             const s = r.numbers.reduce((acc, num) => acc + (num || 0), 0);
             return s === filterVal;
         });
     }
+    // 256 이상은 회차 검색 (단, 777/888/999 제외)
+    else if (filterVal > 255) {
+        // 전체 데이터에서 검색할지, 현재 리스트에서 검색할지 결정
+        // 사용성상 전체 데이터(AppState.allLotto645Data)에서 찾는 것이 유리할 수 있음
+        const sourceData = AppState.allLotto645Data || listData;
+        toDisplay = sourceData.filter(r => r.round === filterVal);
+    }
+    else {
+        toDisplay = listData;
+    }
+
     viewNumbersList.innerHTML = '';
     if (toDisplay.length === 0) {
         viewNumbersList.innerHTML = '<p>해당 조건에 맞는 회차가 없습니다.</p>';
         updateAverageSumDisplay([]);
         return;
     }
+
     const INITIAL_DISPLAY_COUNT = 50;
 
     // 정렬 로직
     let sortedRounds;
     if (filterVal === 0) {
+        // 회차 오름차순
         sortedRounds = [...toDisplay].sort((a, b) => a.round - b.round);
-    } else if (filterVal === 999) {
-        sortedRounds = [...toDisplay].sort((a, b) => b.round - a.round);
     } else if (filterVal === 777) {
-        sortedRounds = [...toDisplay].sort((a, b) => { const sa = getRoundSum(a), sb = getRoundSum(b); return sa !== sb ? sa - sb : a.round - b.round; });
+        // 합계 오름차순
+        sortedRounds = [...toDisplay].sort((a, b) => {
+            const sa = getRoundSum(a), sb = getRoundSum(b);
+            return sa !== sb ? sa - sb : a.round - b.round;
+        });
+    } else if (filterVal === 888) {
+        // 합계 내림차순
+        sortedRounds = [...toDisplay].sort((a, b) => {
+            const sa = getRoundSum(a), sb = getRoundSum(b);
+            return sa !== sb ? sb - sa : b.round - a.round;
+        });
     } else {
-        sortedRounds = [...toDisplay].sort((a, b) => { const sa = getRoundSum(a), sb = getRoundSum(b); return sa !== sb ? sb - sa : b.round - a.round; });
+        // 기본: 회차 내림차순 (999 포함)
+        sortedRounds = [...toDisplay].sort((a, b) => b.round - a.round);
     }
 
     // 초기 렌더링 (최대 50개)
@@ -4695,6 +4675,70 @@ function hideLatestLottoModal() {
     });
 })();
 
+// 하단 영역 토글 및 드래그 제어
+function setupFooterToggle() {
+    const footer = document.getElementById('mainFooter');
+    const bottomArea = document.getElementById('bottomArea');
+    const dragHandle = document.getElementById('bottomDragHandle');
+    if (!footer || !bottomArea) return;
+
+    // 1. 토글 기능
+    footer.addEventListener('click', function () {
+        const isHidden = bottomArea.style.display === 'none';
+        if (isHidden) {
+            bottomArea.style.display = 'block';
+            if (AppState.allLotto645Data && typeof renderMonthlyAverageChart === 'function') {
+                renderMonthlyAverageChart(AppState.allLotto645Data);
+            }
+        } else {
+            bottomArea.style.display = 'none';
+        }
+    });
+
+    // 2. 상하 드래그 기능
+    if (dragHandle) {
+        let isDragging = false;
+        let startY, startBottom;
+
+        dragHandle.addEventListener('mousedown', function (e) {
+            isDragging = true;
+            startY = e.clientY;
+            // 현재 bottom 값 가져오기 (없으면 50px)
+            const style = window.getComputedStyle(bottomArea);
+            startBottom = parseInt(style.bottom, 10) || 50;
+
+            bottomArea.style.transition = 'none'; // 드래그 시 애니메이션 방지
+            document.body.style.cursor = 'ns-resize';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!isDragging) return;
+
+            const deltaY = startY - e.clientY; // 위로 드래그하면 양수
+            let newBottom = startBottom + deltaY;
+
+            // 경계 제한: 헤더(100px)와 푸터(50px)를 침범하지 않도록 설정
+            const minBottom = 50; // 푸터 높이
+            const headerHeight = 100; // 헤더 높이
+            const maxBottom = window.innerHeight - headerHeight - bottomArea.offsetHeight;
+
+            if (newBottom < minBottom) newBottom = minBottom;
+            if (newBottom > maxBottom) newBottom = maxBottom;
+
+            bottomArea.style.bottom = newBottom + 'px';
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (isDragging) {
+                isDragging = false;
+                bottomArea.style.transition = '';
+                document.body.style.cursor = '';
+            }
+        });
+    }
+}
+
 // 모든 리소스가 로드된 후 초기화 실행
 window.addEventListener('load', function () {
     setTimeout(function () {
@@ -4702,6 +4746,7 @@ window.addEventListener('load', function () {
             initializeApp();
             initAIChat();
             setupRangeTypeSelectors();
+            setupFooterToggle(); // 토글 기능 초기화
         } catch (e) {
             console.error('[로또] initializeApp 예외:', e);
         }
@@ -4760,6 +4805,19 @@ function initAIChat() {
                 }
             }
             chatModal.style.display = 'flex';
+
+            // 안내 메시지 업데이트
+            const startRound = document.getElementById('startRound')?.value;
+            const endRound = document.getElementById('endRound')?.value;
+            const systemMsg = chatBody.querySelector('.ai-message.system');
+            if (systemMsg) {
+                if (startRound && endRound) {
+                    systemMsg.innerHTML = `안녕하세요! 현재 설정된 <b>${startRound}회 ~ ${endRound}회</b> 데이터를 기반으로 로또 번호를 분석해 드립니다.<br>궁금한 점을 물어보세요.`;
+                } else {
+                    systemMsg.innerHTML = `안녕하세요! 최근 30회차 데이터를 기반으로 로또 번호를 분석해 드립니다.<br>궁금한 점을 물어보세요.`;
+                }
+            }
+
             input.focus();
         } else {
             chatModal.style.display = 'none';
@@ -4782,11 +4840,19 @@ function initAIChat() {
         // 로딩 표시
         const loadingId = addMessage('분석 중입니다...', 'loading');
 
+        // 현재 설정된 시작/종료 회차 가져오기
+        const startRound = document.getElementById('startRound')?.value;
+        const endRound = document.getElementById('endRound')?.value;
+
         try {
             const response = await fetch('/api/ask-gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text })
+                body: JSON.stringify({
+                    question: text,
+                    startRound: startRound,
+                    endRound: endRound
+                })
             });
             const data = await response.json();
 
@@ -4865,7 +4931,178 @@ function initAIChat() {
     });
 }
 
+
+/**
+ * 회차별 당첨 합계 막대그래프 렌더링
+ */
+function renderMonthlyAverageChart(currentData) {
+    const ctx = document.getElementById('averageSumChart');
+    // 전체 범위를 알기 위해 AppState.allLotto645Data가 필수입니다.
+    if (!ctx || !AppState.allLotto645Data || AppState.allLotto645Data.length === 0) return;
+
+    // 1. 전체 데이터 가공: 회차별 정렬 (1회 -> 최종회)
+    const fullData = [...AppState.allLotto645Data].sort((a, b) => a.round - b.round);
+
+    // 현재 표시해야 할 데이터 (필터링된 데이터)
+    const displayData = currentData || AppState.currentStatsRounds || AppState.allLotto645Data;
+    const filterSet = new Set(displayData.map(r => r.round));
+
+    const labels = fullData.map(r => `${r.round}회`);
+    const roundSums = fullData.map(r => {
+        if (filterSet.has(r.round)) {
+            return (r.numbers || []).reduce((acc, num) => acc + (num || 0), 0);
+        }
+        return null; // 선택되지 않은 회차는 그리지 않음
+    });
+
+    // 2. 현재 선택된 데이터 기반 평균 계산
+    const validSums = roundSums.filter(s => s !== null);
+    const overallAverage = validSums.length > 0
+        ? parseFloat((validSums.reduce((acc, sum) => acc + sum, 0) / validSums.length).toFixed(2))
+        : 0;
+
+    // 3. 차트 너비 계산 및 스크롤바 설정을 위한 wrapper 처리
+    const chartWrapper = document.getElementById('chartWrapper');
+    const bottomUnifiedContent = document.getElementById('bottomUnifiedContent');
+    if (chartWrapper) {
+        // 회차당 고정 6px 유지
+        const fixedBarWidth = 6;
+        const calculatedWidth = labels.length * fixedBarWidth;
+        chartWrapper.style.width = calculatedWidth + 'px';
+
+        // 캔버스 크기 강제 동기화
+        ctx.width = calculatedWidth;
+        ctx.height = chartWrapper.offsetHeight;
+
+        // 필터링된 데이터가 있다면 해당 위치로 스크롤
+        setTimeout(() => {
+            if (bottomUnifiedContent && displayData.length > 0) {
+                const firstRound = Math.min(...displayData.map(r => r.round));
+                const firstIdx = fullData.findIndex(r => r.round === firstRound);
+                if (firstIdx !== -1) {
+                    // 선택된 데이터의 시작 지점으로 스크롤 (약간의 여유를 위해 앞으로 조금 당김)
+                    bottomUnifiedContent.scrollLeft = Math.max(0, (firstIdx * fixedBarWidth) - 20);
+                }
+            } else if (bottomUnifiedContent) {
+                // 전체 데이터일 경우 끝(최신회차)으로 스크롤
+                bottomUnifiedContent.scrollLeft = bottomUnifiedContent.scrollWidth;
+            }
+        }, 100);
+    }
+
+    // 4. Y축 범위 (이론적 최소 21 ~ 최대 255)
+    const yMin = 21;
+    const yMax = 255;
+
+    // 4. 기존 차트가 있으면 파괴
+    if (window.lottoAverageChart) {
+        window.lottoAverageChart.destroy();
+    }
+
+    // 5. 차트 생성
+    window.lottoAverageChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '회차별 합계',
+                    data: roundSums,
+                    backgroundColor: '#aeb9c7', // 스테일 블루 그레이
+                    borderColor: '#94a3b8',
+                    borderWidth: 1,
+                    hoverBackgroundColor: '#000000', // 진한 검정
+                    hoverBorderColor: '#000000',
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0,
+                    zIndex: 1
+                },
+                {
+                    label: `선택 평균 (${overallAverage})`,
+                    type: 'line',
+                    data: new Array(labels.length).fill(overallAverage),
+                    borderColor: '#ff0000',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    zIndex: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: 0
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function (context) {
+                            if (context.parsed.y === null) return null;
+                            if (context.datasetIndex === 0) {
+                                return `합계: ${context.parsed.y}`;
+                            }
+                            return `선택 평균: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: { display: false },
+                    ticks: {
+                        callback: function (value) {
+                            const label = this.getLabelForValue(value);
+                            const roundNum = parseInt(label);
+                            return (roundNum % 50 === 0) ? label : '';
+                        },
+                        autoSkip: false,
+                        maxRotation: 0,
+                        font: { size: 10 },
+                        color: '#666'
+                    }
+                },
+                y: {
+                    min: yMin,
+                    max: yMax,
+                    ticks: {
+                        stepSize: 10,
+                        font: { size: 10 }
+                    },
+                    grid: { color: '#eee' }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+                axis: 'x'
+            }
+        }
+    });
+}
+
+/** 회차 데이터로부터 Date 객체 추출 유틸리티 */
+function getRoundDateObject(round) {
+    if (!round.date) return null;
+    const strVal = String(round.date).trim();
+    if (typeof round.date === 'number' || /^\d{5,}$/.test(strVal)) {
+        const serial = typeof round.date === 'number' ? round.date : parseInt(strVal, 10);
+        if (!isNaN(serial) && serial >= 1) {
+            const utcMs = (serial - 25569) * 86400 * 1000;
+            return new Date(utcMs);
+        }
+    }
+    return parseDate(strVal);
+}
+
 if (document.readyState === 'complete') {
     setTimeout(initializeApp, 200);
 }
+
 

@@ -19,12 +19,14 @@ body {
     overflow-x: hidden;
 }
 
-
 .page-header {
     width: 100%;
+    height: 100px;
     background: #2c2c2c;
     border-bottom: 2px solid #000000;
-    padding: clamp(12px, 2vw, 24px);
+    padding: 0 clamp(12px, 2vw, 24px);
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
 }
@@ -68,9 +70,12 @@ body {
 
 .page-footer {
     width: 100%;
+    height: 50px;
     background: #2c2c2c;
     border-top: 2px solid #000000;
-    padding: clamp(8px, 1.5vw, 12px) clamp(12px, 2vw, 24px);
+    padding: 0 clamp(12px, 2vw, 24px);
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
     box-shadow: 0 -2px 4px 0 rgba(0, 0, 0, 0.1);
 }
@@ -90,9 +95,9 @@ body {
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
-    height: 800px;
-    min-height: 800px;
-    max-height: 800px;
+    height: 760px;
+    min-height: 760px;
+    max-height: 760px;
     justify-content: center;
     align-items: stretch;
     flex-wrap: wrap;
@@ -116,28 +121,25 @@ body {
     max-width: 100%;
 }
 
-.number-grid-container {
-    display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    /* 9열로 고정 */
-    gap: clamp(4px, 0.8vw, 8px);
-    row-gap: 6px;
-    padding: 4px 10px;
-    /* 위/아래 최소, 좌우 10px */
-    background: #ffffff;
-    border: 2px solid #808080;
+.stats-panel {
+    background: #f5f5f5;
     border-radius: 6px;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-    max-width: 100%;
-    margin: 0 auto;
-    justify-items: center;
+    border: 2px solid #808080;
+    padding: clamp(8px, 1.5vw, 10px);
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.15);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    transition: box-shadow 0.3s ease;
 }
 
-.left-panel,
-.center-panel,
-.right-panel {
-    width: 100%;
-    height: 100%;
+.stats-panel:hover {
+    box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.2);
 }
 
 .game-panel {
@@ -161,27 +163,6 @@ body {
     box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.2);
 }
 
-.stats-panel {
-    background: #f5f5f5;
-    border-radius: 6px;
-    border: 2px solid #808080;
-    padding: clamp(8px, 1.5vw, 10px);
-    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.15);
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    flex: 1;
-    transition: box-shadow 0.3s ease;
-}
-
-.stats-panel:hover {
-    box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.2);
-}
-
 .stats-panel h2,
 .game-panel h2 {
     font-size: clamp(1.1rem, 2.5vw, 1.3rem);
@@ -198,10 +179,11 @@ body {
 }
 
 #statsHeaderDisplay {
-    font-size: clamp(0.85rem, 2vw, 0.9rem);
+    font-size: clamp(0.75rem, 2vw, 0.85rem);
     color: #ff0000;
     font-weight: bold;
     white-space: nowrap;
+    font-family: 'Courier New', Courier, monospace;
 }
 
 /* 회차별 당첨번호 헤더: 좌측 제목, 가운데 [N회 평균], 우측 3자리 입력 */
@@ -458,6 +440,11 @@ body {
     box-sizing: border-box;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.3s ease;
+}
+
+.stats-box:hover {
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.15);
+    border-color: #000000;
 }
 
 /* 게임패널 내 stats-box는 gap으로 간격 처리 */
@@ -943,36 +930,6 @@ body {
     pointer-events: none;
 }
 
-.actions {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 12px;
-    margin-bottom: 0;
-}
-
-.actions-box {
-    display: flex;
-    gap: 12px;
-    padding: 10px;
-    border: 2px solid #808080;
-    border-radius: 6px;
-    background: #f5f5f5;
-    width: 100%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.actions-box .btn {
-    flex: 1;
-    min-width: 0;
-}
-
-label {
-    font-size: 0.9rem;
-}
-
 select {
     padding: 6px 16px;
     border-radius: 6px;
@@ -1027,6 +984,53 @@ input[type="password"]:focus {
     outline: none;
     border-color: #000000;
     box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+}
+
+.actions-box {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    border: 2px solid #808080;
+    border-radius: 6px;
+    background: #f5f5f5;
+    width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+    padding: clamp(8px, 1.5vw, 12px) clamp(16px, 3vw, 24px);
+    border-radius: 6px;
+    border: none;
+    background: #2c2c2c;
+    color: #ffffff;
+    font-weight: 500;
+    font-size: clamp(0.75rem, 2vw, 0.8rem);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(4px, 1vw, 8px);
+}
+
+.btn:hover {
+    background: #000000;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.btn-outline {
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid #808080;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-outline:hover {
+    background: #e8e8e8;
+    color: #000000;
+    border-color: #000000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* 구간선택(시작/종료) 박스 */
@@ -1173,15 +1177,6 @@ textarea:focus {
 .results-box:hover {
     box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.15);
     border-color: #000000;
-}
-
-.results {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    align-items: stretch;
-    color: #000000;
-    width: 100%;
 }
 
 .set-box {
@@ -2316,23 +2311,20 @@ textarea:focus {
 #dateRangeBox {
     display: flex;
     flex-direction: row;
-    /* 한 줄로 정렬 */
     align-items: center;
-    /* 수직 중앙 정렬 */
-    gap: 4px;
-    padding-bottom: 4px;
+    gap: 20px;
+    /* 섹션 간 간격 확대 */
+    padding: 6px 12px;
     flex-wrap: wrap;
-    /* 공간 부족 시 줄바꿈 허용 */
+    justify-content: flex-start;
 }
 
 #dateRangeBox .range-row {
     display: flex;
     align-items: center;
-    gap: 4px;
-    flex: 1 1 auto;
-    /* 유동적으로 크기 조정 */
-    width: auto;
-    min-width: 0;
+    gap: 8px;
+    /* 라디오와 입력창 사이 간격 */
+    flex: 0 0 auto;
 }
 
 #dateRangeBox .range-radio-label {
@@ -2353,8 +2345,8 @@ textarea:focus {
     display: flex;
     align-items: center;
     gap: 4px;
-    flex: 1;
-    min-width: 0;
+    flex: 0 0 auto;
+    /* 고정 너비를 위해 flex 성질 변경 */
     transition: opacity 0.3s ease;
 }
 
@@ -2366,8 +2358,6 @@ textarea:focus {
 
 #dateRangeBox .range-input {
     width: 100%;
-    flex: 1;
-    min-width: 0;
     /* flex item 축소 가능하게 */
     padding: 2px 4px;
     border: 1px solid #ccc;
@@ -2379,6 +2369,20 @@ textarea:focus {
     transition: background-color 0.2s, border-color 0.2s;
     height: 26px;
     box-sizing: border-box;
+}
+
+/* 회차 입력 필드 너비 조정 (4자리) */
+#startRound,
+#endRound {
+    width: 50px !important;
+    flex: none !important;
+}
+
+/* 기간 입력 필드 너비 조정 (YY/MM/DD) */
+#startDate,
+#endDate {
+    width: 85px !important;
+    flex: none !important;
 }
 
 #dateRangeBox .range-input:read-only {
@@ -2409,6 +2413,7 @@ textarea:focus {
 
 #dateRangeBox .range-input {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 /* 조회 버튼 영역 */
@@ -2422,4 +2427,105 @@ textarea:focus {
 #selectDateRangeBtn {
     width: auto;
     min-width: 60px;
+}
+
+/* 하단 컨테이너 영역 스타일 (통합 패널 - 오버랩 방식) */
+.bottom-container {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    bottom: 50px;
+    /* 푸터 위쪽 (푸터 높이 50px에 맞춤) */
+    left: clamp(8px, 1.5vw, 16px);
+    right: clamp(8px, 1.5vw, 16px);
+    height: 400px;
+    min-height: 400px;
+    max-height: calc(100vh - 150px);
+    /* 헤더(100) + 푸터(50) 제외 영역 */
+    border: 2px solid #000000;
+    border-radius: 8px;
+    padding: 0;
+    box-sizing: border-box;
+    background: rgba(245, 245, 245, 0.98);
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+}
+
+.bottom-drag-handle {
+    width: 100%;
+    height: 10px;
+    background: #e0e0e0;
+    cursor: ns-resize;
+    border-bottom: 1px solid #ccc;
+    border-radius: 6px 6px 0 0;
+    flex-shrink: 0;
+}
+
+.bottom-drag-handle:hover {
+    background: #ccc;
+}
+
+.unified-bottom-panel {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    margin: 0;
+    background: #ffffff !important;
+    border: 1px solid #808080;
+    border-radius: 4px;
+}
+
+.unified-bottom-panel h3 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 600;
+    text-align: center;
+}
+
+#bottomUnifiedContent {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: #fcfcfc;
+    border-radius: 4px;
+    position: relative;
+    width: 100%;
+}
+
+/* Thicker horizontal scrollbar for the chart area */
+#bottomUnifiedContent::-webkit-scrollbar {
+    height: 16px;
+    /* Widen the bar's width as requested */
+}
+
+#bottomUnifiedContent::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+#bottomUnifiedContent::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 8px;
+    border: 3px solid #f1f1f1;
+}
+
+#bottomUnifiedContent::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#chartWrapper {
+    height: 100%;
+    min-width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+#averageSumChart {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
 }

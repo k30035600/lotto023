@@ -44,9 +44,9 @@
                             <label class="range-radio-label"><input type="radio" name="rangeType" value="period">
                                 기간</label>
                             <div class="range-input-group" id="dateInputRow">
-                                <input type="text" id="startDate" class="range-input" placeholder="yy/mm/dd">
+                                <input type="text" id="startDate" class="range-input" placeholder="yymmdd">
                                 <span class="range-tilde">~</span>
-                                <input type="text" id="endDate" class="range-input" placeholder="yy/mm/dd">
+                                <input type="text" id="endDate" class="range-input" placeholder="yymmdd">
                             </div>
                         </div>
                         <div class="date-range-button">
@@ -153,13 +153,26 @@
                 </div>
             </div>
         </div>
-    </main>
 
-    <footer class="page-footer">
-        <div class="footer-content">
-            <p>© 2024 로또 번호 생성기</p>
+        <!-- 하단 컨테이너 (하나의 통합된 패널) - 푸터 위로 이동 및 기본 숨김 -->
+        <div id="bottomArea" class="bottom-container" style="display: none;">
+            <div id="bottomDragHandle" class="bottom-drag-handle" title="상하 드래그하여 위치 이동"></div>
+            <div class="stats-panel unified-bottom-panel" style="padding: 0;">
+                <div id="bottomUnifiedContent"
+                    style="border: none; padding: 0; height: 100%; overflow-x: auto; overflow-y: hidden;">
+                    <div id="chartWrapper" style="height: calc(100% - 15px); position: relative;">
+                        <canvas id="averageSumChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
-    </footer>
+
+        <footer id="mainFooter" class="page-footer" style="cursor: pointer;">
+            <div class="footer-content">
+                <p>© 2024 로또 번호 생성기 (클릭하여 분석 그래프 표시/숨기기)</p>
+            </div>
+        </footer>
+    </main>
 
     <!-- 최신 추첨정보 모달 (회차별 당첨번호 클릭 시 · 동행복권 파싱 결과) -->
     <div id="latestLottoModal" class="latest-lotto-modal" aria-hidden="true">
@@ -191,6 +204,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 

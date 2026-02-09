@@ -795,28 +795,54 @@ def api_ask_gemini():
     try:
         req_data = request.get_json() or {}
         user_question = req_data.get('question', '최근 로또 번호 패턴 분석해줘')
+        start_round_param = req_data.get('startRound')
+        end_round_param = req_data.get('endRound')
         
         # 최근 로또 데이터 로드 (JSON)
         json_path = (BASE_DIR / 'source' / 'Lotto645.json').resolve()
         
         recent_data = []
-        analyze_count = 30  # 분석 데이터 확대 (10회 -> 30회)
+        analyze_count = 30  # 기본 분석 데이터 수
 
         if json_path.is_file():
             with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if data:
-                    # 1. 파일 정렬 순서 보장 (회차 내림차순 -> 최신 회차 확보)
-                    data.sort(key=lambda x: int(x.get('회차', 0)), reverse=True)
-                    # 2. 최신 N회차 데이터 슬라이싱
-                    recent_data = data[:analyze_count]
+                    # 1. 숫자형 회차 변환 및 정렬
+                    for item in data:
+                        item['_round_int'] = int(item.get('회차', 0))
+                    
+                    data.sort(key=lambda x: x['_round_int'], reverse=True)
+
+                    max_analyze_count = 100
+                    try:
+                        s_target = int(start_round_param) if start_round_param else None
+                        e_target = int(end_round_param) if end_round_param else None
+                        
+                        if s_target and e_target:
+                            # 사용자가 지정한 범위 필터링
+                            matched_data = [item for item in data if s_target <= item['_round_int'] <= e_target]
+                            # 너무 많은 데이터는 AI 처리에 부담이 될 수 있으므로 최근 N개로 제한
+                            if len(matched_data) > max_analyze_count:
+                                recent_data = matched_data[:max_analyze_count]
+                            else:
+                                recent_data = matched_data
+                        else:
+                            # 범위가 없으면 최신 N회차
+                            recent_data = data[:analyze_count]
+                    except (ValueError, TypeError):
+                        # 파라미터 오류 시 기본값 사용
+                        recent_data = data[:analyze_count]
+
                     # 3. 시계열 분석을 위해 과거 -> 최신 순(오름차순)으로 재정렬
-                    recent_data.sort(key=lambda x: int(x.get('회차', 0)))
+                    recent_data.sort(key=lambda x: x['_round_int'])
         
         if not recent_data:
             return jsonify(returnValue='fail', error='분석할 로또 데이터가 없습니다.'), 200, CORS_HEADERS
 
-        history_text = f"최근 {len(recent_data)}회차 로또 당첨번호 (과거 -> 최신순):\n"
+        analysis_range_text = f"{recent_data[0]['_round_int']}회 ~ {recent_data[-1]['_round_int']}회" if len(recent_data) > 1 else f"{recent_data[0]['_round_int']}회"
+        history_text = f"분석 대상 범위: {analysis_range_text} (총 {len(recent_data)}회차)\n"
+        history_text += "로또 당첨번호 이력 (과거 -> 최신순):\n"
         for row in recent_data:
             nums = [row.get(f'번호{i}') for i in range(1, 7)]
             history_text += f"- {row.get('회차')}회 ({row.get('날짜')}): {nums} + 보너스 {row.get('보너스번호')}\n"
