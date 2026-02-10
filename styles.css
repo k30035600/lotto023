@@ -44,8 +44,8 @@ body {
     width: 100%;
     display: flex;
     flex-direction: column;
-    background: #ffffff;
-    color: #000000;
+    background: var(--color-bg-white);
+    color: var(--color-text-primary);
     contain: layout style paint;
     overflow-x: hidden;
 }
@@ -53,9 +53,9 @@ body {
 .page-header {
     width: 100%;
     height: 100px;
-    background: #2c2c2c;
-    border-bottom: 2px solid #000000;
-    padding: 0 clamp(12px, 2vw, 24px);
+    background: var(--color-primary);
+    border-bottom: 2px solid var(--color-border-dark);
+    padding: 0 clamp(var(--spacing-xxl), 2vw, 24px);
     display: flex;
     align-items: center;
     flex-shrink: 0;
@@ -95,8 +95,8 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: clamp(8px, 1.5vw, 16px);
+    gap: var(--spacing-md);
+    padding: clamp(var(--spacing-lg), 1.5vw, 16px);
 }
 
 .page-footer {
