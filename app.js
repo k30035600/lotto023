@@ -1,3 +1,9 @@
+/** API 서버 베이스 URL 가져오기 */
+function getApiBaseUrl() {
+    // Railway 등 배포 환경에서는 현재 도메인을 사용, 로컬 테스트 시에는 localhost:8000 등이 될 수 있음
+    return window.location.origin;
+}
+
 // constants.js에서 로드된 전역 변수들이 사용됩니다.
 // DEFAULT_SET_COUNT: 기본 세트 수
 // LOTTO_CONSTANTS: 로또 관련 상수
@@ -2762,7 +2768,7 @@ async function saveGamesToCSV() {
             return;
         }
 
-        const baseUrl = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : 'http://localhost:8000';
+        const baseUrl = getApiBaseUrl();
         const response = await fetch(`${baseUrl}/api/save-lotto023`, {
             method: 'POST',
             headers: {
