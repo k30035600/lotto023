@@ -1170,6 +1170,23 @@ def _mimetype_with_charset(path):
     return None
 
 
+@app.route('/api/shutdown', methods=['POST', 'OPTIONS'])
+def api_shutdown():
+    if request.method == 'OPTIONS':
+        return '', 204, CORS_OPTIONS_HEADERS
+    logger.info('[종료] 서버 종료 요청 수신')
+    resp = jsonify({'returnValue': 'success', 'message': '서버를 종료합니다.'})
+    resp.headers.update(CORS_HEADERS)
+
+    import threading
+    def _shutdown():
+        import time
+        time.sleep(0.5)
+        os._exit(0)
+    threading.Thread(target=_shutdown, daemon=True).start()
+    return resp
+
+
 @app.route('/')
 def index():
     resp = send_from_directory(BASE_DIR, 'index.html')

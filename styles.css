@@ -20,26 +20,49 @@
     /*
      * 나눔과어울림 ShareHarmony · MyRisk Color Palette
      * 기본 3색: MyBank(#1565C0) · MyCard(#6A1B9A) · MyCash(#E65100)
-     * 공통색: Primary(#263238) · Action(#546E7A) · Text(#1A1A1A)
+     * 공통색: Primary(#263238) · Action(#5A6E7A) · Text(#1A1A1A)
      */
 
-    /* ── 공통색 (Common) ── */
-    --color-body: #F0F2F5;
+    /* ── 공통색 (Common) ── Brand / Navigation */
     --color-primary: #263238;
     --color-primary-dark: #1B2631;
-    --color-border: #B0BEC5;
-    --color-border-dark: #37474F;
-    --color-bg-white: #FFFFFF;
-    --color-bg-light: #F0F2F5;
-    --color-bg-lighter: #E8EAED;
+    --color-accent: #5A6E7A;
+    --color-accent-dark: #37474F;
+    --color-accent-light: #B0BEC5;
+
+    /* ── 공통색 (Common) ── 입금 / 출금 */
+    --color-income: #1565C0;
+    --color-expense: #C62828;
+    --color-income-light: #90CAF5;
+    --color-expense-light: #EF9A9A;
+
+    /* ── 공통색 (Common) ── 텍스트 / 배경 */
     --color-text-primary: #1A1A1A;
     --color-text-secondary: #334155;
-    --color-accent: #546E7A;
-    --color-harmony-bg: #F0F2F5;
-    --color-harmony-border: #B0BEC5;
-    --color-golden: #EBC658;
-    --color-golden-light: #ffecb3;
-    --color-text-muted: #546E7A;
+    --color-text-muted: #5A6872;
+    --color-text-disabled: #B5A5A8;
+    --color-body: #F0F2F5;
+    --color-bg-white: #FFFFFF;
+    --color-bg-light: #F0F2F5;
+    --color-bg-lighter: #E2E6EA;
+
+    /* ── 공통색 (Common) ── 테이블 기본값 */
+    --color-table-header: #455A64;
+    --color-table-stripe: #F7F8FA;
+    --color-table-hover: #D8EAFE;
+    --color-table-sum: #E2E8F0;
+
+    /* ── 공통색 (Common) ── 바디 / 상태 */
+    --color-border: #D5DAE0;
+    --color-border-light: #E2E6EA;
+    --color-border-dark: #37474F;
+    --color-warning: #E67E22;
+    --color-golden: #F39C12;
+    --color-golden-light: #FDEBD0;
+
+    /* ── 공통색 호환 별칭 ── */
+    --color-harmony-bg: #F7F8FA;
+    --color-harmony-border: #D5DAE0;
     --color-error: #C62828;
 
     /* ── 동행복권 공인 컬러 ── */
@@ -52,8 +75,8 @@
     /* ── Google 4색 (ShareHarmony/MyRisk 조화 버전) ── */
     --google-blue: #1565C0;
     --google-red: #C62828;
-    --google-yellow: #EBC658;
-    --google-green: #546E7A;
+    --google-yellow: #F39C12;
+    --google-green: #5A6E7A;
 
     /* ── 패널 배경 계층화 ── */
     --panel-side-bg: #F0F2F5;
@@ -83,18 +106,18 @@
 
     /* ── 필터박스 ── */
     --filter-box-bg: #FFFFFF;
-    --filter-box-border: #B0BEC5;
+    --filter-box-border: #D5DAE0;
     --filter-btn-bg: #FFFFFF;
-    --filter-btn-active: #546E7A;
+    --filter-btn-active: #5A6E7A;
 
     /* ── 입력 필드 ── */
     --input-bg: #FFFFFF;
-    --input-border: #B0BEC5;
+    --input-border: #D5DAE0;
     --input-focus: #1565C0;
 
     /* ── 드롭다운(select) ── */
     --dropdown-bg: #FFFFFF;
-    --dropdown-border: #B0BEC5;
+    --dropdown-border: #D5DAE0;
     --dropdown-active: #E8F0FE;
 
     /* ── AI 요소 ── */
@@ -115,7 +138,7 @@
 }
 
 body {
-    font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Noto Sans KR", sans-serif;
+    font-family: 'Noto Sans KR', 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
     font-display: swap;
     margin: 0;
     padding: 0;
@@ -1539,8 +1562,8 @@ input[type=number] {
 }
 
 .ai-message.system {
-    background-color: var(--color-bg-lighter, #E8EAED);
-    border: 1px solid var(--color-border, #B0BEC5);
+    background-color: var(--color-bg-lighter, #E2E6EA);
+    border: 1px solid var(--color-border, #D5DAE0);
     color: var(--color-text-secondary, #334155);
     font-size: 0.85rem;
     align-self: center;
@@ -1557,7 +1580,7 @@ input[type=number] {
 .ai-message.assistant {
     background-color: var(--color-bg-white, #FFFFFF);
     color: var(--color-text-primary, #1A1A1A);
-    border: 1px solid var(--color-border, #B0BEC5);
+    border: 1px solid var(--color-border, #D5DAE0);
     align-self: flex-start;
     border-top-left-radius: 0;
 }

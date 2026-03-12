@@ -1,42 +1,70 @@
-/** ShareHarmony · MyRisk 팔레트 (동행볼 제외, UI 일관용) */
+/** ShareHarmony · MyRisk 팔레트 (동행볼 제외, UI 일관용) — Common 기준 */
 const SHAREHARMONY_PALETTE = {
-    primaryNavy: '#263238',
+    /* Brand / Navigation */
     primary: '#263238',
+    primaryNavy: '#263238',
     primaryDark: '#1B2631',
-    accent: '#546E7A',
+    accent: '#5A6E7A',
+    accentDark: '#37474F',
     accentLight: '#B0BEC5',
-    white: '#FFFFFF',
-    black: '#000000',
+    /* 입금 / 출금 */
+    income: '#1565C0',
+    expense: '#C62828',
+    incomeLight: '#90CAF5',
+    expenseLight: '#EF9A9A',
+    /* 텍스트 / 배경 */
     textPrimary: '#1A1A1A',
     textSecondary: '#334155',
-    textMuted: '#546E7A',
-    border: '#B0BEC5',
+    textMuted: '#5A6872',
+    textDisabled: '#B5A5A8',
+    pageBg: '#F0F2F5',
+    white: '#FFFFFF',
+    black: '#000000',
+    bgLight: '#F0F2F5',
+    bgLighter: '#E2E6EA',
+    /* 테이블 기본값 */
+    tableHeader: '#455A64',
+    tableStripe: '#F7F8FA',
+    tableHover: '#D8EAFE',
+    tableSumRow: '#E2E8F0',
+    /* 바디 / 상태 */
+    border: '#D5DAE0',
+    borderLight: '#E2E6EA',
+    warning: '#E67E22',
+    golden: '#F39C12',
+    goldenLight: '#FDEBD0',
+    goldenDark: '#D4860B',
+    goldenTicket: '#D4AF37',
     error: '#C62828',
-    golden: '#EBC658',
-    goldenLight: '#ffecb3',
-    goldenDark: '#b8860b',
-    goldenTicket: '#d4af37',
+    /* 기본 3색 */
     myBankBlue: '#1565C0',
     myBankDark: '#0A3D91',
     myCardPurple: '#6A1B9A',
     myCardDark: '#38006B',
     myCashOrange: '#E65100',
-    income: '#1565C0',
-    expense: '#C62828',
-    greenAccent: '#546E7A',
+    /* 호환 별칭 */
+    greenAccent: '#5A6E7A',
     greenBtn: '#1565C0',
     greenBtnDark: '#0A3D91',
     aiOrange: '#E65100',
     aiOrangeBorder: '#BF360C',
-    bgLight: '#F0F2F5',
-    bgLighter: '#E8EAED',
     selectionBorder: '#1565C0'
 };
 
 /** API 서버 베이스 URL 가져오기 */
 function getApiBaseUrl() {
-    // Railway 등 배포 환경에서는 현재 도메인을 사용, 로컬 테스트 시에는 localhost:8000 등이 될 수 있음
     return window.location.origin;
+}
+
+function shutdownServer() {
+    if (!confirm('서버를 종료하시겠습니까?')) return;
+    fetch(getApiBaseUrl() + '/api/shutdown', { method: 'POST' })
+        .then(() => {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:1.2rem;color:#334155;">서버가 종료되었습니다. 이 탭을 닫아주세요.</div>';
+        })
+        .catch(() => {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:1.2rem;color:#334155;">서버가 종료되었습니다. 이 탭을 닫아주세요.</div>';
+        });
 }
 
 // constants.js에서 로드된 전역 변수들이 사용됩니다.
@@ -149,6 +177,7 @@ async function initializeStats(lottoData) {
             // AppState 업데이트
             AppState.winStatsMap = stats.winStatsMap;
             AppState.appearanceStatsMap = stats.appearanceStatsMap;
+            AppState.consecutiveStatsMap = calculateConsecutiveStats(lottoData);
             AppState.winPercentageCache = stats.winPercentageMap;
             AppState.appearancePercentageCache = stats.appearancePercentageMap;
             AppState.overallHotColdCache = stats.hotCold;
@@ -274,15 +303,35 @@ function getFilteredNumbersByCount(highCount = true) {
  * 정렬 기준: 1) 당첨횟수(보너스 제외) 내림차순, 2) 출현횟수(보너스 포함) 내림차순, 3) 번호 오름차순
  * 핫: 상위 23개 (최다빈도순), 콜: 하위 22개 (최소빈도순)
  */
-function sortAndSplitHotCold(winStatsMap, appearanceStatsMap) {
+/**
+ * 번호별 연속 출현 횟수 Map 반환 (각 번호가 연속쌍의 일부로 등장한 횟수)
+ */
+function calculateConsecutiveStats(rounds) {
+    const map = new Map();
+    for (let i = 1; i <= 45; i++) map.set(i, 0);
+    (rounds || []).forEach(r => {
+        const nums = (r.numbers || []).map(n => parseInt(n, 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+        for (let j = 0; j < nums.length - 1; j++) {
+            if (nums[j + 1] === nums[j] + 1) {
+                map.set(nums[j], (map.get(nums[j]) || 0) + 1);
+                map.set(nums[j + 1], (map.get(nums[j + 1]) || 0) + 1);
+            }
+        }
+    });
+    return map;
+}
+
+function sortAndSplitHotCold(winStatsMap, appearanceStatsMap, consecutiveStatsMap) {
+    var seqMap = consecutiveStatsMap || new Map();
     var sorted = Array.from(winStatsMap.entries())
         .map(function (e) {
-            return { number: e[0], count: e[1], appCount: (appearanceStatsMap && appearanceStatsMap.get(e[0])) || 0 };
+            return { number: e[0], count: e[1], appCount: (appearanceStatsMap && appearanceStatsMap.get(e[0])) || 0, seqCount: seqMap.get(e[0]) || 0 };
         })
         .sort(function (a, b) {
             if (b.count !== a.count) return b.count - a.count;
             if (b.appCount !== a.appCount) return b.appCount - a.appCount;
-            return a.number - b.number;
+            if (b.seqCount !== a.seqCount) return b.seqCount - a.seqCount;
+            return b.number - a.number;
         });
     var hot = sorted.slice(0, 23).map(function (s) { return s.number; });
     var cold = sorted.slice(23).reverse().map(function (s) { return s.number; });
@@ -300,7 +349,8 @@ function getOverallHotColdNumbers() {
 
     var winMap = calculateWinStats(AppState.allLotto645Data);
     var appMap = calculateAppearanceStats(AppState.allLotto645Data);
-    AppState.overallHotColdCache = sortAndSplitHotCold(winMap, appMap);
+    var seqMap = calculateConsecutiveStats(AppState.allLotto645Data);
+    AppState.overallHotColdCache = sortAndSplitHotCold(winMap, appMap, seqMap);
     return AppState.overallHotColdCache;
 }
 
@@ -315,7 +365,8 @@ function getHotColdNumbersBeforeRound(targetRound) {
     if (filtered.length === 0) return { hot: [], cold: [] };
     var winMap = calculateWinStats(filtered);
     var appMap = calculateAppearanceStats(filtered);
-    return sortAndSplitHotCold(winMap, appMap);
+    var seqMap = calculateConsecutiveStats(filtered);
+    return sortAndSplitHotCold(winMap, appMap, seqMap);
 }
 
 /**
@@ -328,7 +379,8 @@ function getHotColdNumbers() {
     }
     var winMap = calculateWinStats(data);
     var appMap = calculateAppearanceStats(data);
-    return sortAndSplitHotCold(winMap, appMap);
+    var seqMap = calculateConsecutiveStats(data);
+    return sortAndSplitHotCold(winMap, appMap, seqMap);
 }
 
 /**
@@ -1321,18 +1373,19 @@ function renderNumberGrid() {
     // 통계공의 정렬 방식에 따라 선택공 그리드 정렬
     const appMap = AppState.appearanceStatsMap || new Map();
     const winMap = AppState.winStatsMap || new Map();
+    const seqMap = AppState.consecutiveStatsMap || new Map();
     if (AppState.currentSort === 'win-desc') {
-        sortedStats.sort((a, b) => (b.count - a.count) || ((appMap.get(b.number) || 0) - (appMap.get(a.number) || 0)) || (a.number - b.number));
+        sortedStats.sort((a, b) => (b.count - a.count) || ((appMap.get(b.number) || 0) - (appMap.get(a.number) || 0)) || ((seqMap.get(b.number) || 0) - (seqMap.get(a.number) || 0)) || (b.number - a.number));
     } else if (AppState.currentSort === 'win-asc') {
-        sortedStats.sort((a, b) => (a.count - b.count) || ((appMap.get(a.number) || 0) - (appMap.get(b.number) || 0)) || (b.number - a.number));
+        sortedStats.sort((a, b) => (a.count - b.count) || ((appMap.get(a.number) || 0) - (appMap.get(b.number) || 0)) || ((seqMap.get(a.number) || 0) - (seqMap.get(b.number) || 0)) || (a.number - b.number));
     } else if (AppState.currentSort === 'appearance-desc') {
         sortedStats = Array.from(appMap.entries())
             .map(([number, count]) => ({ number, count }))
-            .sort((a, b) => (b.count - a.count) || ((winMap.get(b.number) || 0) - (winMap.get(a.number) || 0)) || (a.number - b.number));
+            .sort((a, b) => (b.count - a.count) || ((winMap.get(b.number) || 0) - (winMap.get(a.number) || 0)) || ((seqMap.get(b.number) || 0) - (seqMap.get(a.number) || 0)) || (b.number - a.number));
     } else if (AppState.currentSort === 'appearance-asc') {
         sortedStats = Array.from(appMap.entries())
             .map(([number, count]) => ({ number, count }))
-            .sort((a, b) => (a.count - b.count) || ((winMap.get(a.number) || 0) - (winMap.get(b.number) || 0)) || (b.number - a.number));
+            .sort((a, b) => (a.count - b.count) || ((winMap.get(a.number) || 0) - (winMap.get(b.number) || 0)) || ((seqMap.get(a.number) || 0) - (seqMap.get(b.number) || 0)) || (a.number - b.number));
     } else if (AppState.currentSort === 'number-desc') {
         sortedStats.sort((a, b) => b.number - a.number);
     } else if (AppState.currentSort === 'number-asc') {
@@ -1371,9 +1424,24 @@ function renderNumberGrid() {
         gridContainer.innerHTML = '';
     }
 
-    // 당첨순 상위 6개 번호 찾기 (정렬된 순서 기준)
-    const sortedByWin = [...sortedStats].sort((a, b) => b.count - a.count);
-    const top6Numbers = new Set(sortedByWin.slice(0, 6).map(s => s.number));
+    // 테두리 표시 대상 번호 결정
+    let highlightNumbers;
+    const isNumberSort = AppState.currentSort === 'number-asc' || AppState.currentSort === 'number-desc';
+    if (isNumberSort) {
+        const latestRound = (AppState.allLotto645Data && AppState.allLotto645Data.length > 0)
+            ? AppState.allLotto645Data.reduce((max, r) => r.round > max.round ? r : max, AppState.allLotto645Data[0])
+            : null;
+        highlightNumbers = latestRound
+            ? new Set(latestRound.numbers.map(n => parseInt(n, 10)))
+            : new Set();
+    } else {
+        const appMapForTop6 = AppState.appearanceStatsMap || new Map();
+        const seqMapForTop6 = AppState.consecutiveStatsMap || new Map();
+        const sortedByWin = [...sortedStats].sort((a, b) =>
+            (b.count - a.count) || ((appMapForTop6.get(b.number) || 0) - (appMapForTop6.get(a.number) || 0)) || ((seqMapForTop6.get(b.number) || 0) - (seqMapForTop6.get(a.number) || 0)) || (b.number - a.number)
+        );
+        highlightNumbers = new Set(sortedByWin.slice(0, 6).map(s => s.number));
+    }
 
     // 정렬된 순서대로 선택공 그리드에 배치
     // 모든 번호(1~45)가 포함되도록 보장
@@ -1396,8 +1464,7 @@ function renderNumberGrid() {
         ball.style.cursor = 'pointer';
         ball.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease';
 
-        // 당첨순 상위 6개는 검정색 테두리 (0.2px)
-        if (top6Numbers.has(stat.number)) {
+        if (highlightNumbers.has(stat.number)) {
             ball.style.border = '0.2px solid ' + SHAREHARMONY_PALETTE.black;
             ball.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.1)';
         }
@@ -1418,7 +1485,7 @@ function renderNumberGrid() {
         });
         ball.addEventListener('mouseleave', () => {
             ball.style.transform = 'scale(1)';
-            if (top6Numbers.has(stat.number)) {
+            if (highlightNumbers.has(stat.number)) {
                 ball.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.1)';
             } else {
                 ball.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
@@ -1697,21 +1764,22 @@ function renderStatsList() {
 
     const slAppMap = AppState.appearanceStatsMap || new Map();
     const slWinMap = AppState.winStatsMap || new Map();
+    const slSeqMap = AppState.consecutiveStatsMap || calculateConsecutiveStats(AppState.currentStatsRounds || AppState.allLotto645Data);
     if (AppState.currentSort === 'win-desc') {
-        sortedStats.sort((a, b) => (b.count - a.count) || ((slAppMap.get(b.number) || 0) - (slAppMap.get(a.number) || 0)) || (a.number - b.number));
+        sortedStats.sort((a, b) => (b.count - a.count) || ((slAppMap.get(b.number) || 0) - (slAppMap.get(a.number) || 0)) || ((slSeqMap.get(b.number) || 0) - (slSeqMap.get(a.number) || 0)) || (b.number - a.number));
         percentageMap = AppState.winPercentageCache || new Map();
     } else if (AppState.currentSort === 'win-asc') {
-        sortedStats.sort((a, b) => (a.count - b.count) || ((slAppMap.get(a.number) || 0) - (slAppMap.get(b.number) || 0)) || (b.number - a.number));
+        sortedStats.sort((a, b) => (a.count - b.count) || ((slAppMap.get(a.number) || 0) - (slAppMap.get(b.number) || 0)) || ((slSeqMap.get(a.number) || 0) - (slSeqMap.get(b.number) || 0)) || (a.number - b.number));
         percentageMap = AppState.winPercentageCache || new Map();
     } else if (AppState.currentSort === 'appearance-desc') {
         sortedStats = Array.from(slAppMap.entries())
             .map(([number, count]) => ({ number, count }))
-            .sort((a, b) => (b.count - a.count) || ((slWinMap.get(b.number) || 0) - (slWinMap.get(a.number) || 0)) || (a.number - b.number));
+            .sort((a, b) => (b.count - a.count) || ((slWinMap.get(b.number) || 0) - (slWinMap.get(a.number) || 0)) || ((slSeqMap.get(b.number) || 0) - (slSeqMap.get(a.number) || 0)) || (b.number - a.number));
         percentageMap = AppState.appearancePercentageCache || new Map();
     } else if (AppState.currentSort === 'appearance-asc') {
         sortedStats = Array.from(slAppMap.entries())
             .map(([number, count]) => ({ number, count }))
-            .sort((a, b) => (a.count - b.count) || ((slWinMap.get(a.number) || 0) - (slWinMap.get(b.number) || 0)) || (b.number - a.number));
+            .sort((a, b) => (a.count - b.count) || ((slWinMap.get(a.number) || 0) - (slWinMap.get(b.number) || 0)) || ((slSeqMap.get(a.number) || 0) - (slSeqMap.get(b.number) || 0)) || (a.number - b.number));
         percentageMap = AppState.appearancePercentageCache || new Map();
     } else if (AppState.currentSort === 'number-desc') {
         sortedStats.sort((a, b) => b.number - a.number);
@@ -2626,7 +2694,7 @@ function updateGameProbability(gameIndex, numbers) {
         probDisplay.style.backgroundColor = SHAREHARMONY_PALETTE.golden;
         probDisplay.style.color = SHAREHARMONY_PALETTE.black;
     } else if (score >= 70) {
-        probDisplay.style.backgroundColor = '#546E7A'; // 공통색 Action
+        probDisplay.style.backgroundColor = SHAREHARMONY_PALETTE.accent;
         probDisplay.style.color = SHAREHARMONY_PALETTE.white;
     } else {
         probDisplay.style.backgroundColor = SHAREHARMONY_PALETTE.textMuted;
@@ -2716,8 +2784,8 @@ function showAnalysisBubble(gameIndex, numbers, score, event) {
             <div class="ab-score-area">
                 <span class="ab-score-label">AI 분석 신뢰도</span>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:80px; height:6px; background:#e0e0e0; border-radius:3px; overflow:hidden;">
-                        <div style="width:${score}%; height:100%; background:${score >= 90 ? '#EBC658' : '#1565C0'}; border-radius:3px;"></div>
+                    <div style="width:80px; height:6px; background:${SHAREHARMONY_PALETTE.border}; border-radius:3px; overflow:hidden;">
+                        <div style="width:${score}%; height:100%; background:${score >= 90 ? SHAREHARMONY_PALETTE.golden : SHAREHARMONY_PALETTE.income}; border-radius:3px;"></div>
                     </div>
                     <span class="ab-score-val" style="color:${score >= 90 ? '#D4961A' : '#1565C0'}">${score}%</span>
                 </div>
@@ -2837,6 +2905,16 @@ function generateGoldenAiGames() {
         btn.innerHTML = '✨ AI 분석 및 최적화 중...';
     }
 
+    // 옵션필터를 기본값(없음/AC)으로 리셋
+    const oeSelect = document.getElementById('filterOddEven');
+    const hcSelect = document.getElementById('filterHotCold');
+    const seqSelect = document.getElementById('filterConsecutive');
+    const acSelect = document.getElementById('filterAC');
+    if (oeSelect) oeSelect.value = 'none';
+    if (hcSelect) hcSelect.value = 'none';
+    if (seqSelect) seqSelect.value = 'none';
+    if (acSelect) acSelect.value = 'none';
+
     // 황금 번호 초기화
     AppState.goldenNumbers = new Set();
 
@@ -2854,10 +2932,10 @@ function generateGoldenAiGames() {
         for (let i = 1; i <= 5; i++) {
             let numbers = null;
             for (let t = 0; t < 200; t++) {
-                const candidate = generateNumbersWithFilters([], false, usedCombos);
+                const candidate = generateNumbersWithFilters([], false, usedCombos, true);
                 if (calculateAIProbability(candidate) >= 100) { numbers = candidate; break; }
             }
-            if (!numbers) numbers = generateNumbersWithFilters([], false, usedCombos);
+            if (!numbers) numbers = generateNumbersWithFilters([], false, usedCombos, true);
             usedCombos.add([...numbers].sort((a, b) => a - b).join(','));
 
             if (!AppState.setSelectedBalls) AppState.setSelectedBalls = Array.from({ length: 5 }, () => []);
@@ -2893,6 +2971,21 @@ function showGoldenAiAnalysis() {
 
     const nextRound = (AppState && AppState.allLotto645Data && AppState.allLotto645Data[0])
         ? AppState.allLotto645Data[0].round + 1 : '??';
+    let nextDrawDate = '';
+    let nextDrawDateFull = '';
+    if (AppState && AppState.allLotto645Data && AppState.allLotto645Data[0] && AppState.allLotto645Data[0].date) {
+        const lastDate = typeof AppState.allLotto645Data[0].date === 'string'
+            ? new Date(AppState.allLotto645Data[0].date)
+            : new Date((AppState.allLotto645Data[0].date - 25569) * 86400000);
+        if (!isNaN(lastDate.getTime())) {
+            lastDate.setDate(lastDate.getDate() + 7);
+            const yyyy = lastDate.getFullYear();
+            const mm = String(lastDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(lastDate.getDate()).padStart(2, '0');
+            nextDrawDate = `${yyyy}-${mm}-${dd}`;
+            nextDrawDateFull = nextDrawDate;
+        }
+    }
     const oeFilter = document.getElementById('filterOddEven')?.value || 'none';
     const hcFilter = document.getElementById('filterHotCold')?.value || 'none';
     const seqFilter = document.getElementById('filterConsecutive')?.value || 'none';
@@ -2902,7 +2995,7 @@ function showGoldenAiAnalysis() {
     const hotSet = new Set(hot);
 
     let gamesHtml = '';
-    let fullText = `✨ AI 추천 번호 분석 (${nextRound}회)\n${'─'.repeat(30)}\n`;
+    let fullText = `✨ AI 추천 번호 분석 제${nextRound}회${nextDrawDate ? '\n' + nextDrawDate + ' 추첨 예정' : ''}\n${'─'.repeat(30)}\n`;
 
     let displayIdx = 0;
     for (let i = 0; i < 5; i++) {
@@ -2919,30 +3012,32 @@ function showGoldenAiAnalysis() {
         const seqPairs = countSequentialPairs(sorted);
         const ac = calculateAC(sorted);
 
-        const ballsHtml = sorted.map(n =>
-            `<span class="stat-ball stat-ball--sm ${getBallColorClass(n)}" style="display:inline-flex;margin:0 1px;">${n}</span>`
-        ).join('');
+        const bubbleBallBg = { 'color-yellow': '#D4A300', 'color-blue': '#2E8BC0', 'color-red': '#D63333', 'color-gray': '#666666', 'color-green': '#6B9E00' };
+        const ballsHtml = sorted.map(n => {
+            const cls = getBallColorClass(n);
+            return `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;margin:0 2px;background:${bubbleBallBg[cls] || '#888'};color:#FFFFFF;font-weight:800;font-size:0.78rem;box-shadow:none;animation:none;">${n}</span>`;
+        }).join('');
 
         gamesHtml += `
-            <div style="padding:6px 0;border-bottom:1px solid #eee;">
+            <div style="padding:6px 0;border-bottom:1px solid ${SHAREHARMONY_PALETTE.accentLight};">
                 <div style="display:flex;align-items:center;gap:clamp(2px,1vw,6px);margin-bottom:3px;">
                     <span style="font-weight:bold;color:${SHAREHARMONY_PALETTE.goldenDark};font-size:clamp(0.68rem,2.2vw,0.82rem);white-space:nowrap;">GAME ${displayIdx}</span>
                     <span style="flex:1;text-align:center;line-height:1;">${ballsHtml}</span>
                     <span style="font-size:clamp(0.65rem,2vw,0.75rem);font-weight:bold;color:${SHAREHARMONY_PALETTE.greenBtn};white-space:nowrap;">${score}%</span>
                 </div>
-                <div style="display:flex;justify-content:flex-end;align-items:center;gap:clamp(4px,1.5vw,8px);font-size:clamp(0.6rem,1.8vw,0.72rem);color:${SHAREHARMONY_PALETTE.textSecondary};">
-                    <span>합계 ${sum}</span>
-                    <span>홀짝 ${oddCnt}:${6 - oddCnt}</span>
-                    <span>핫콜 ${hotCnt}:${6 - hotCnt}</span>
-                    <span>연속 ${seqPairs}</span>
-                    <span>AC ${ac}</span>
+                <div style="display:flex;justify-content:flex-end;align-items:center;gap:0;font-size:clamp(0.6rem,1.8vw,0.72rem);color:${SHAREHARMONY_PALETTE.textPrimary};font-weight:500;font-family:'Courier New',Courier,monospace;">
+                    <span style="width:52px;text-align:right;">합계 ${String(sum).padStart(3,'\u2007')}</span><span style="width:1px;height:10px;background:${SHAREHARMONY_PALETTE.accent};flex-shrink:0;margin:0 4px;"></span>
+                    <span style="width:52px;text-align:right;">홀짝 ${oddCnt}:${6 - oddCnt}</span><span style="width:1px;height:10px;background:${SHAREHARMONY_PALETTE.accent};flex-shrink:0;margin:0 4px;"></span>
+                    <span style="width:52px;text-align:right;">핫콜 ${hotCnt}:${6 - hotCnt}</span><span style="width:1px;height:10px;background:${SHAREHARMONY_PALETTE.accent};flex-shrink:0;margin:0 4px;"></span>
+                    <span style="width:38px;text-align:right;">연속 ${seqPairs}</span><span style="width:1px;height:10px;background:${SHAREHARMONY_PALETTE.accent};flex-shrink:0;margin:0 4px;"></span>
+                    <span style="width:38px;text-align:right;">AC ${String(ac).padStart(2,'\u2007')}</span>
                 </div>
             </div>`;
 
         fullText += `GAME ${displayIdx}: ${sorted.join(', ')}  합:${sum} 홀짝:${oddCnt}:${6 - oddCnt} 핫콜:${hotCnt}:${6 - hotCnt} 연속:${seqPairs} AC:${ac} 신뢰:${score}%\n`;
     }
     if (displayIdx === 0) {
-        gamesHtml = '<div style="text-align:center;padding:20px;color:#999;">100% 신뢰도 조합이 없습니다.</div>';
+        gamesHtml = `<div style="text-align:center;padding:20px;color:${SHAREHARMONY_PALETTE.textMuted};">100% 신뢰도 조합이 없습니다.</div>`;
     }
 
     const filterInfo = [];
@@ -2957,23 +3052,23 @@ function showGoldenAiAnalysis() {
     overlay.className = 'golden-analysis-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
-        <div style="background:#fff;border-radius:12px;padding:clamp(12px,3vw,20px);width:clamp(280px,70vw,380px);max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);position:relative;">
-            <span onclick="this.closest('.golden-analysis-overlay').remove()" style="position:absolute;top:8px;right:12px;font-size:1.2rem;cursor:pointer;color:#999;">×</span>
+        <div style="background:${SHAREHARMONY_PALETTE.white};border-radius:12px;padding:clamp(12px,3vw,20px);width:clamp(280px,70vw,380px);max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);position:relative;">
+            <span onclick="this.closest('.golden-analysis-overlay').remove()" style="position:absolute;top:8px;right:12px;font-size:1.2rem;cursor:pointer;color:${SHAREHARMONY_PALETTE.textMuted};">×</span>
             <div style="text-align:center;font-weight:bold;font-size:clamp(0.85rem,2.5vw,1rem);color:${SHAREHARMONY_PALETTE.goldenDark};border-bottom:2px solid ${SHAREHARMONY_PALETTE.golden};padding-bottom:6px;margin-bottom:6px;">
-                ✨ AI 추천 번호 분석 (${nextRound}회)
-            </div>
-            <div style="font-size:clamp(0.6rem,1.8vw,0.72rem);color:${SHAREHARMONY_PALETTE.textSecondary};text-align:center;margin-bottom:6px;">
-                적용필터: ${filterInfo.join(' | ')}
+                ✨ AI 추천 번호 분석
+                ${nextDrawDate ? `<div style="display:flex;justify-content:space-between;align-items:center;font-size:clamp(0.65rem,1.8vw,0.78rem);margin-top:3px;"><span>제${nextRound}회</span><span><span style="color:${SHAREHARMONY_PALETTE.error};">${nextDrawDateFull}</span> <span style="font-weight:normal;color:${SHAREHARMONY_PALETTE.textSecondary};">추첨 예정</span></span></div>` : `<div style="font-size:clamp(0.65rem,1.8vw,0.78rem);margin-top:3px;">제${nextRound}회</div>`}
             </div>
             ${gamesHtml}
-            <div style="margin-top:8px;padding:clamp(6px,2vw,10px);background:#f8f9fa;border-radius:8px;font-size:clamp(0.58rem,1.7vw,0.7rem);line-height:1.6;color:${SHAREHARMONY_PALETTE.textSecondary};">
+            <div style="margin-top:8px;padding:clamp(6px,2vw,10px);background:${SHAREHARMONY_PALETTE.bgLighter};border-radius:8px;font-size:clamp(0.65rem,2vw,0.78rem);line-height:1.6;color:${SHAREHARMONY_PALETTE.textPrimary};">
                 <div style="font-weight:bold;color:${SHAREHARMONY_PALETTE.textPrimary};margin-bottom:4px;">📖 분석 항목 안내</div>
-                <div><b>합계</b> — 6개 번호의 합 (적용: ${sumRange.start}~${sumRange.end})</div>
-                <div><b>홀짝</b> — 홀수:짝수 비율 (적용: ${oeFilter !== 'none' ? oeFilter.replace('-', ':') : '전체'})</div>
-                <div><b>핫콜</b> — 핫:콜 비율 (적용: ${hcFilter !== 'none' ? hcFilter.replace('-', ':') : '전체'})</div>
-                <div><b>연속</b> — 연이은 번호 쌍 수 (적용: ${seqFilter !== 'none' ? seqFilter + '쌍' : '전체'})</div>
-                <div><b>AC</b> — 번호 간격 다양성 0~10 (적용: ${acFilter !== 'none' ? acFilter : '전체'})</div>
-                <div><b>신뢰도</b> — 위 5개 항목 필터 일치도 종합 점수</div>
+                <table style="width:100%;border-collapse:collapse;font-size:inherit;line-height:1.5;">
+                    <tr><td style="white-space:nowrap;font-weight:700;padding:1px 0;width:42px;">합계</td><td style="padding:1px 4px;color:${SHAREHARMONY_PALETTE.textMuted};width:14px;">—</td><td style="padding:1px 0;"><span style="color:${SHAREHARMONY_PALETTE.expense};">(${sumRange.start}~${sumRange.end} 적용)</span> 6개 번호의 합</td></tr>
+                    <tr><td style="white-space:nowrap;font-weight:700;padding:1px 0;">홀짝</td><td style="padding:1px 4px;color:${SHAREHARMONY_PALETTE.textMuted};">—</td><td style="padding:1px 0;"><span style="color:${SHAREHARMONY_PALETTE.accent};">(자동적용)</span> 홀수:짝수 비율</td></tr>
+                    <tr><td style="white-space:nowrap;font-weight:700;padding:1px 0;">핫콜</td><td style="padding:1px 4px;color:${SHAREHARMONY_PALETTE.textMuted};">—</td><td style="padding:1px 0;"><span style="color:${SHAREHARMONY_PALETTE.accent};">(자동적용)</span> 핫:콜 비율</td></tr>
+                    <tr><td style="white-space:nowrap;font-weight:700;padding:1px 0;">연속</td><td style="padding:1px 4px;color:${SHAREHARMONY_PALETTE.textMuted};">—</td><td style="padding:1px 0;"><span style="color:${SHAREHARMONY_PALETTE.accent};">(자동적용)</span> 연이은 번호 쌍 수</td></tr>
+                    <tr><td style="white-space:nowrap;font-weight:700;padding:1px 0;">AC값</td><td style="padding:1px 4px;color:${SHAREHARMONY_PALETTE.textMuted};">—</td><td style="padding:1px 0;"><span style="color:${SHAREHARMONY_PALETTE.accent};">(자동적용)</span> 번호 간격 다양성 0~10</td></tr>
+                    <tr><td style="white-space:nowrap;font-weight:700;padding:1px 0;">신뢰도</td><td style="padding:1px 4px;color:${SHAREHARMONY_PALETTE.textMuted};">—</td><td style="padding:1px 0;">위 5개 항목 필터 일치도 종합 점수</td></tr>
+                </table>
             </div>
             <div style="display:flex;gap:clamp(4px,1.5vw,8px);margin-top:10px;">
                 <button id="goldenCopyTextBtn" data-text="${fullText.replace(/"/g, '&quot;')}"
@@ -3351,13 +3446,13 @@ function isPastWinningCombo(numbers) {
     return AppState._pastWinKeySet.has(key);
 }
 
-function generateNumbersWithFilters(existingNumbers = [], skipSumRange, excludeCombos) {
+function generateNumbersWithFilters(existingNumbers = [], skipSumRange, excludeCombos, skipOptionFilters = false) {
     var sumRange = skipSumRange ? null : getSumRange();
     var maxAttempts = 300;
-    const oddEvenFilter = document.getElementById('filterOddEven')?.value || 'none';
-    const sequenceFilter = document.getElementById('filterConsecutive')?.value || 'none';
-    const hotColdFilter = document.getElementById('filterHotCold')?.value || 'none';
-    const acFilter = document.getElementById('filterAC')?.value || 'none';
+    const oddEvenFilter = skipOptionFilters ? 'none' : (document.getElementById('filterOddEven')?.value || 'none');
+    const sequenceFilter = skipOptionFilters ? 'none' : (document.getElementById('filterConsecutive')?.value || 'none');
+    const hotColdFilter = skipOptionFilters ? 'none' : (document.getElementById('filterHotCold')?.value || 'none');
+    const acFilter = skipOptionFilters ? 'none' : (document.getElementById('filterAC')?.value || 'none');
     
     // 제외수 파싱
     const excludeEl = document.getElementById('filterExclude');
@@ -4870,7 +4965,7 @@ function extractAndApplyFilters(filteredData) {
     let minSum = Infinity;
     let maxSum = -Infinity;
 
-    const hcResult = sortAndSplitHotCold(calculateWinStats(filteredData), calculateAppearanceStats(filteredData));
+    const hcResult = sortAndSplitHotCold(calculateWinStats(filteredData), calculateAppearanceStats(filteredData), calculateConsecutiveStats(filteredData));
     const hotSet = new Set(hcResult.hot);
 
     filteredData.forEach(round => {
@@ -5058,6 +5153,8 @@ function updateStatsByDateRange() {
         renderNumberGrid();
         renderViewNumbersList([]);
         updateRoundRangeDisplay();
+        const wsBox0 = document.getElementById('winStructureBox');
+        if (wsBox0) wsBox0.style.display = 'none';
         return;
     }
 
@@ -5076,6 +5173,7 @@ function updateStatsByDateRange() {
         .sort((a, b) => a.number - b.number);
 
     AppState.appearanceStatsMap = calculateAppearanceStats(filteredData);
+    AppState.consecutiveStatsMap = calculateConsecutiveStats(filteredData);
 
     const winPercentageMap = calculatePercentageStats(AppState.winStatsMap, filteredData.length);
     AppState.winPercentageCache = winPercentageMap;
@@ -5096,6 +5194,9 @@ function updateStatsByDateRange() {
     renderNumberGrid();
     renderViewNumbersList(filteredData);
     updateRoundRangeDisplay();
+
+    const wsBox = document.getElementById('winStructureBox');
+    if (wsBox) wsBox.style.display = '';
 
     // 시작회차~종료회차 사이의 특성을 추출하여 옵션필터에 적용
     extractAndApplyFilters(filteredData);
@@ -5580,23 +5681,8 @@ function renderViewNumbersList(baseData) {
     updateAverageSumDisplay(listData);
 }
 
-(function setupLatestLottoClick() {
-    const titleEl = document.getElementById('roundNumbersTitle');
-    if (!titleEl) return;
-    titleEl.style.cursor = 'pointer';
-
-    // This setup is now obsolete as the bubble is self-contained.
-    // const closeBtn = document.getElementById('latestLottoModalClose');
-    // if (closeBtn) closeBtn.addEventListener('click', hideLatestLottoModal);
-    // const modal = document.getElementById('latestLottoModal');
-    // if (modal) modal.addEventListener('click', e => { if (e.target === modal) hideLatestLottoModal(); });
-
-    titleEl.addEventListener('click', () => {
-        if (typeof loadAndShowLottoRound === 'function') {
-            loadAndShowLottoRound(null, titleEl); // 최신 회차 조회, bubble attached to title
-        }
-    });
-})();
+// 당첨회차 말풍선은 우측 패널 결과박스의 회차 클릭에서만 표시
+// (헤더 제목 클릭 → 최신회차 말풍선 제거)
 
 function hideAllBottomPanels() {
     ['bottomArea', 'bottomAreaWin', 'bottomAreaNumber'].forEach(id => {

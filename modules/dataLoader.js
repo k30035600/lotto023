@@ -138,8 +138,11 @@ function normalizeLottoData(data) {
     if (!Array.isArray(data)) return [];
 
     return data.map(item => {
-        // 이미 정규화되어 있으면 그대로 반환
+        // 이미 정규화되어 있으면 그대로 반환 (date가 없으면 날짜에서 복사)
         if (item.round !== undefined && Array.isArray(item.numbers)) {
+            if (item.date === undefined && item['날짜'] !== undefined) {
+                item.date = item['날짜'];
+            }
             return item;
         }
 
@@ -148,6 +151,11 @@ function normalizeLottoData(data) {
         // 1. 회차 -> round
         if (item['회차'] !== undefined) {
             normalized.round = Number(item['회차']);
+        }
+
+        // 1-1. 날짜 -> date
+        if (item['날짜'] !== undefined && item['날짜'] !== null && item['날짜'] !== '') {
+            normalized.date = item['날짜'];
         }
 
         // 2. 번호1~6 또는 선택1~6 -> numbers 배열
