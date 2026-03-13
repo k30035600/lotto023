@@ -125,6 +125,9 @@
     --ai-color-dark: #BF360C;
     --ai-bg: #FFF3E0;
 
+    /* 박스 공통 배경 (다크) */
+    --color-box-bg: var(--color-primary-dark);
+
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 6px;
@@ -135,6 +138,13 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+/* 공통 UI 박스 (필터/네비/당첨구조 등 영역 감싸기) */
+.ui-box {
+    border: 1px solid var(--color-border-dark);
+    border-radius: var(--radius-md);
+    background: var(--color-box-bg);
 }
 
 body {

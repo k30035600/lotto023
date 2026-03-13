@@ -3850,11 +3850,33 @@ async function saveGamesToCSV() {
 }
 
 /**
- * 선택삭제 버튼 설정
+ * 선택삭제 버튼 설정 + 전체선택 체크박스
  */
 function setupDeleteSelectedButton() {
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    if (!deleteSelectedBtn) return;
+    const selectAllCheckbox = document.getElementById('selectAllDeleteCheckbox');
+    const resultContainer = document.getElementById('resultContainer');
+    if (!deleteSelectedBtn || !resultContainer) return;
+
+    // 전체선택 체크박스 상태 갱신 (일부 선택 = indeterminate)
+    const updateSelectAllState = () => {
+        if (!selectAllCheckbox) return;
+        const all = document.querySelectorAll('.result-delete-checkbox');
+        const checked = document.querySelectorAll('.result-delete-checkbox:checked');
+        if (all.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checked.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checked.length === all.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    };
 
     // 체크박스 상태 변경을 감지하기 위한 함수
     const updateDeleteBtnState = () => {
@@ -3870,11 +3892,23 @@ function setupDeleteSelectedButton() {
             deleteSelectedBtn.style.borderColor = SHAREHARMONY_PALETTE.textMuted;
             deleteSelectedBtn.style.cursor = 'default';
         }
+        updateSelectAllState();
         updateSaveBoxState(); // 선택 상태에 따라 저장 버튼 활성/비활성 업데이트
     };
 
+    // 전체선택 체크박스 클릭: 모든 삭제 체크박스 일괄 선택/해제
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', () => {
+            const checked = selectAllCheckbox.checked;
+            document.querySelectorAll('.result-delete-checkbox').forEach(cb => {
+                cb.checked = checked;
+            });
+            updateDeleteBtnState();
+        });
+    }
+
     // 정적인 이벤트뿐만 아니라 렌더링 후 동적으로 붙은 체크박스 이벤트 처리를 위해 이벤트 위임 사용
-    document.getElementById('resultContainer').addEventListener('change', (e) => {
+    resultContainer.addEventListener('change', (e) => {
         if (e.target && e.target.classList.contains('result-delete-checkbox')) {
             updateDeleteBtnState();
         }
@@ -4004,6 +4038,8 @@ async function loadAndDisplayResults() {
             resultContainer.innerHTML = '<p style="text-align: center; color: ' + SHAREHARMONY_PALETTE.textSecondary + '; font-size: 0.9rem;">저장된 결과가 없습니다.</p>';
             const summaryContainer = document.getElementById('resultSummary');
             if (summaryContainer) summaryContainer.innerHTML = '';
+            const selectAll = document.getElementById('selectAllDeleteCheckbox');
+            if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
             return;
         }
 
@@ -4045,6 +4081,8 @@ async function loadAndDisplayResults() {
         }
 
         resultContainer.innerHTML = ''; // 기존 요약 박스 제거 후 초기화
+        const selectAll = document.getElementById('selectAllDeleteCheckbox');
+        if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
 
         // 각 그룹별로 결과 표시
         sortedGroups.forEach(([roundStr, games]) => {
@@ -5844,14 +5882,23 @@ function setupFooterToggle() {
     }
 }
 
-// 전체 화면 진입 시도 (이 페이지는 전체화면으로 시작)
-function tryFullscreen() {
-    const el = document.documentElement;
-    if (!el.requestFullscreen) return;
-    if (document.fullscreenElement) return;
-    try {
-        el.requestFullscreen().catch(function () {});
-    } catch (e) {}
+// 전체화면 버튼: 클릭 시 토글, fullscreenchange 시 버튼 텍스트 갱신
+function setupFullscreenButton() {
+    const btn = document.getElementById('fullscreenBtn');
+    if (!btn) return;
+    function updateLabel() {
+        btn.textContent = document.fullscreenElement ? '창모드' : '전체화면';
+    }
+    document.addEventListener('fullscreenchange', updateLabel);
+    updateLabel();
+    btn.addEventListener('click', function () {
+        if (!document.documentElement.requestFullscreen) return;
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(function () {});
+        } else {
+            document.documentElement.requestFullscreen().catch(function () {});
+        }
+    });
 }
 
 function setupResultFilterListeners() {
@@ -6078,13 +6125,8 @@ window.addEventListener('load', () => {
                     fetchLatestWinningNumbers();
                 });
             }
-            // 전체화면으로 시작 시도 (브라우저 정책상 로드 직후는 막힐 수 있음)
-            tryFullscreen();
-            // 첫 클릭 시 전체화면 재시도 (제스처 필요 시 대비)
-            document.body.addEventListener('click', function onceFullscreen() {
-                tryFullscreen();
-                document.body.removeEventListener('click', onceFullscreen);
-            }, { once: true });
+            // 전체화면은 헤더 '전체화면' 버튼으로만 전환 (첫 로드 시 자동 전체화면 없음)
+            setupFullscreenButton();
         } catch (e) {
             console.error('[로또] initializeApp 예외:', e);
         }
