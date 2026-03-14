@@ -140,11 +140,56 @@
     padding: 0;
 }
 
+/* 스크롤바 너비 통일 (좌·중앙·우 패널 동일) */
+.panel-inner,
+#statsList,
+#viewNumbersList,
+#resultContainer,
+.stats-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-dark) transparent;
+}
+.panel-inner::-webkit-scrollbar,
+#statsList::-webkit-scrollbar,
+#viewNumbersList::-webkit-scrollbar,
+#resultContainer::-webkit-scrollbar,
+.stats-list::-webkit-scrollbar {
+    width: 8px;
+}
+.panel-inner::-webkit-scrollbar-track,
+#statsList::-webkit-scrollbar-track,
+#viewNumbersList::-webkit-scrollbar-track,
+#resultContainer::-webkit-scrollbar-track,
+.stats-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.panel-inner::-webkit-scrollbar-thumb,
+#statsList::-webkit-scrollbar-thumb,
+#viewNumbersList::-webkit-scrollbar-thumb,
+#resultContainer::-webkit-scrollbar-thumb,
+.stats-list::-webkit-scrollbar-thumb {
+    background: var(--color-border-dark);
+    border-radius: 4px;
+}
+.panel-inner::-webkit-scrollbar-thumb:hover,
+#statsList::-webkit-scrollbar-thumb:hover,
+#viewNumbersList::-webkit-scrollbar-thumb:hover,
+#resultContainer::-webkit-scrollbar-thumb:hover,
+.stats-list::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent);
+}
+
 /* 공통 UI 박스 (필터/네비/당첨구조 등 영역 감싸기) */
 .ui-box {
     border: 1px solid var(--color-border-dark);
     border-radius: var(--radius-md);
     background: var(--color-box-bg);
+}
+
+/* 당첨금·당첨확률 테이블 박스 (감싸기 강조) */
+.win-structure-box {
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 body {
@@ -391,6 +436,14 @@ body {
     background: var(--color-bg-white, #fff);
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+/* 가운데 패널 내부 박스 너비 동일 (네비·필터·선택공·저장공·당첨구조 등) */
+.game-panel .panel-inner > * {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
 }
 
@@ -762,9 +815,11 @@ body {
 }
 
 .filter-dropdown {
-    width: 68px;
-    flex: 0 0 68px;
+    flex: 1 1 0;
+    min-width: 60px;
+    max-width: 120px;
     text-align: center;
+    box-sizing: border-box;
 }
 
 .option-filter-sep {
@@ -818,6 +873,68 @@ input.result-filter-text {
 .option-filter-input::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+/* 저장공 요약 박스: 다크 배경에 어울리는 텍스트/입력/버튼, 텍스트 크기 통일 */
+.result-summary-box {
+    border-color: var(--color-border-dark) !important;
+    font-size: 0.8rem;
+}
+.result-summary-box #resultSummary,
+.result-summary-box .result-summary-left,
+.result-summary-box #saveRound {
+    font-size: 0.8rem;
+}
+.result-summary-box #resultSummary,
+.result-summary-box .result-summary-left {
+    color: var(--color-bg-white) !important;
+}
+.result-summary-box #resultSummary span {
+    color: var(--color-bg-white) !important;
+}
+.result-summary-box #saveRound {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--color-bg-white);
+    border-color: var(--color-border-dark);
+}
+.result-summary-box #saveRound::placeholder {
+    color: var(--color-accent-light);
+}
+/* 번호저장 / 선택삭제 버튼: 동일 크기·속성 */
+.result-summary-box #saveBtn,
+.result-summary-box #deleteSelectedBtn {
+    height: 22px;
+    min-height: 22px;
+    padding: 0 8px;
+    font-size: 0.8rem;
+    line-height: 1;
+    border-radius: 4px;
+    border: 1px solid var(--color-border-dark);
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.result-summary-box #saveBtn {
+    background: var(--color-accent) !important;
+    color: var(--color-bg-white) !important;
+}
+.result-summary-box #saveBtn:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+.result-summary-box #deleteSelectedBtn {
+    background: transparent;
+    color: var(--color-accent-light);
+}
+.result-summary-box #deleteSelectedBtn:not(:disabled) {
+    color: var(--color-bg-white);
+    border-color: var(--color-accent-light);
+}
+.result-summary-box #deleteSelectedBtn:disabled {
+    cursor: default;
+}
+.result-summary-box #selectAllDeleteCheckbox {
+    accent-color: var(--color-accent-light);
 }
 
 .center-nav-link {

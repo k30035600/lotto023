@@ -1859,7 +1859,7 @@ function initializeGameBox() {
         checkbox.disabled = true;
         checkbox.style.width = '14px';
         checkbox.style.height = '14px';
-        checkbox.addEventListener('change', function () {
+        checkbox.addEventListener('change', async function () {
             const gameIndex = parseInt(this.dataset.gameIndex);
             const modeBtn = document.getElementById(`modeBtn${gameIndex}`);
             const currentMode = modeBtn ? modeBtn.dataset.mode : 'manual';
@@ -1889,6 +1889,8 @@ function initializeGameBox() {
                         return;
                     }
                 }
+
+                // 동일 회차·세트/게임이 있으면 저장 시 서버가 세트+1·게임 1부터 부여하므로 경고 없음
             }
             updateSaveBoxState();
         });
@@ -1904,14 +1906,35 @@ function initializeGameBox() {
         modeBtn.dataset.gameIndex = i;
         modeBtn.dataset.mode = 'manual';
         modeBtn.addEventListener('click', function () {
+            const gameIdx = parseInt(this.dataset.gameIndex, 10);
+            const cb = document.getElementById(`gameCheckbox${gameIdx}`);
+            if (cb && cb.checked) {
+                alert('게임모드를 변경하려면 체크박스를 해제한 후 진행해 주세요.');
+                return;
+            }
             const currentMode = this.dataset.mode;
+            const semiFrom = this.dataset.semiFrom || '';
             let newMode, newText;
-            if (currentMode === 'manual') {
+            // 행운 순환: 행운 ⇄ 반자동 (선택필터 초기화)
+            if (currentMode === 'lucky') {
+                newMode = 'semi-auto';
+                newText = '반자동';
+                this.dataset.semiFrom = 'lucky';
+            } else if (currentMode === 'semi-auto' && semiFrom === 'lucky') {
+                newMode = 'lucky';
+                newText = '행운';
+                delete this.dataset.semiFrom;
+            } else if (currentMode === 'semi-auto' && semiFrom === 'ai') {
+                newMode = 'manual';
+                newText = '수동';
+                delete this.dataset.semiFrom;
+            } else if (currentMode === 'manual') {
                 newMode = 'auto';
                 newText = 'AI추천';
             } else if (currentMode === 'auto') {
                 newMode = 'semi-auto';
                 newText = '반자동';
+                this.dataset.semiFrom = 'ai';
             } else {
                 newMode = 'manual';
                 newText = '수동';
@@ -1919,12 +1942,28 @@ function initializeGameBox() {
             this.dataset.mode = newMode;
             this.textContent = newText;
 
-            var cb = document.getElementById(`gameCheckbox${i}`);
+            // 행운으로 전환 시 선택필터(옵션필터) 초기화
+            if (newMode === 'lucky') {
+                const oeSelect = document.getElementById('filterOddEven');
+                const hcSelect = document.getElementById('filterHotCold');
+                const seqSelect = document.getElementById('filterConsecutive');
+                const acSelect = document.getElementById('filterAC');
+                if (oeSelect) oeSelect.value = 'none';
+                if (hcSelect) hcSelect.value = 'none';
+                if (seqSelect) seqSelect.value = 'none';
+                if (acSelect) acSelect.value = 'none';
+                if (AppState.optionFilters) {
+                    AppState.optionFilters.oddEven = 'none';
+                    AppState.optionFilters.hotCold = 'none';
+                    AppState.optionFilters.consecutive = 'none';
+                }
+            }
+
             if (newMode === 'manual') {
                 if (!AppState.setSelectedBalls) AppState.setSelectedBalls = Array.from({ length: 5 }, () => []);
                 AppState.setSelectedBalls[i - 1] = [];
                 if (cb) cb.checked = false;
-            } else if (newMode === 'auto') {
+            } else if (newMode === 'auto' || newMode === 'lucky') {
                 if (cb) cb.checked = true;
             } else if (newMode === 'semi-auto') {
                 if (cb) cb.checked = false;
@@ -2455,7 +2494,7 @@ function generateGame(gameIndex, mode, isModeChange = false) {
 
     ballsContainer.innerHTML = '';
 
-    if (mode === 'auto') {
+    if (mode === 'auto' || mode === 'lucky') {
         const checkbox = document.getElementById(`gameCheckbox${gameIndex}`);
         let numbers;
         if (isModeChange) {
@@ -2492,7 +2531,9 @@ function generateGame(gameIndex, mode, isModeChange = false) {
         const modeBtnEl = document.getElementById('modeBtn' + gameIndex);
         if (checkbox) {
             checkbox.disabled = false;
+            checkbox.checked = true; // AI추천일 경우 저장공에 자동 출력(체크)
         }
+        updateSaveBoxState(); // 저장 버튼/회차 입력 활성화
 
         // 게임공 비활성화 (클릭 불가)
         const gameBalls = ballsContainer.querySelectorAll('.stat-ball');
@@ -2625,16 +2666,25 @@ function generateGame(gameIndex, mode, isModeChange = false) {
                 const cb = document.getElementById(`gameCheckbox${gameIndex}`);
                 if (cb && cb.checked) return; // 체크된 상태에서는 수정 불가
 
-                // 이전 선택 하이라이트 제거
+                // 이전 선택 하이라이트 제거 (빈 공은 검정 배경으로 복원)
                 const allBalls = ballsContainer.querySelectorAll('.stat-ball');
-                allBalls.forEach(b => {
+                allBalls.forEach((b, idx) => {
                     b.style.border = '0.2px solid ' + SHAREHARMONY_PALETTE.black;
                     b.style.boxShadow = 'none';
+                    if (b.textContent === '?' || !currentNumbers[idx]) {
+                        b.style.backgroundColor = SHAREHARMONY_PALETTE.black;
+                        b.style.color = SHAREHARMONY_PALETTE.white;
+                    }
                 });
 
                 // 현재 선택공 하이라이트
                 ball.style.border = '2px solid ' + SHAREHARMONY_PALETTE.selectionBorder;
                 ball.style.boxShadow = '0 0 8px rgba(0, 102, 255, 0.5)';
+                // 수동 모드에서 첫 번째 공 선택 시(빈 칸일 때) 바탕색 흰색
+                if (i === 0 && ball.textContent === '?') {
+                    ball.style.backgroundColor = '#fff';
+                    ball.style.color = '#333';
+                }
 
                 currentSelectingGameIndex = gameIndex;
                 currentSelectingBallIndex = i;
@@ -2943,15 +2993,15 @@ function generateGoldenAiGames() {
 
             const modeBtn = document.getElementById(`modeBtn${i}`);
             if (modeBtn) {
-                modeBtn.dataset.mode = 'auto';
-                modeBtn.textContent = 'AI추천';
+                modeBtn.dataset.mode = 'lucky';
+                modeBtn.textContent = '행운';
             }
             const checkbox = document.getElementById(`gameCheckbox${i}`);
             if (checkbox) {
                 checkbox.disabled = false;
                 checkbox.checked = true;
             }
-            updateGameSet(i, 'auto');
+            updateGameSet(i, 'lucky');
         }
 
         if (btn) {
@@ -3743,9 +3793,10 @@ async function saveGamesToCSV() {
             const validNumbers = numbers.filter(n => n && n >= 1 && n <= 45);
             if (validNumbers.length === 6) {
                 const modeBtn = document.getElementById(`modeBtn${i}`);
-                let gameMode = '자동';
+                let gameMode = '수동';
                 if (modeBtn) {
-                    if (modeBtn.dataset.mode === 'auto') gameMode = '자동';
+                    if (modeBtn.dataset.mode === 'lucky') gameMode = '행운';
+                    else if (modeBtn.dataset.mode === 'auto') gameMode = 'AI추천';
                     else if (modeBtn.dataset.mode === 'semi-auto') gameMode = '반자동';
                     else if (modeBtn.dataset.mode === 'manual') gameMode = '수동';
                 }
@@ -3809,6 +3860,8 @@ async function saveGamesToCSV() {
         return;
     }
 
+    // 동일 회차·세트/게임이 있으면 서버에서 세트+1, 게임 1부터 부여하므로 별도 경고 없이 전송
+
     // 새 게임 서버 전송
     try {
         const baseUrl = getApiBaseUrl();
@@ -3834,6 +3887,20 @@ async function saveGamesToCSV() {
             for (let i = 1; i <= 5; i++) {
                 const cb = document.getElementById(`gameCheckbox${i}`);
                 if (cb) { cb.checked = false; cb.disabled = true; }
+                const modeBtn = document.getElementById(`modeBtn${i}`);
+                if (modeBtn) {
+                    modeBtn.dataset.mode = 'manual';
+                    modeBtn.textContent = '수동';
+                    delete modeBtn.dataset.semiFrom;
+                }
+            }
+            // 드롭다운 필터를 조회회차 통계값으로 적용
+            const listData = AppState.currentViewNumbersBaseData || AppState.currentStatsRounds || AppState.allLotto645Data;
+            if (listData && listData.length > 0) extractAndApplyFilters(listData);
+            if (AppState.optionFilters) {
+                AppState.optionFilters.oddEven = document.getElementById('filterOddEven')?.value || 'none';
+                AppState.optionFilters.hotCold = document.getElementById('filterHotCold')?.value || 'none';
+                AppState.optionFilters.consecutive = document.getElementById('filterConsecutive')?.value || 'none';
             }
             generateAllGames();
             updateSaveBoxState();
@@ -4126,7 +4193,7 @@ async function loadAndDisplayResults() {
                 const oe = (game.oddEven != null && game.oddEven !== "") ? game.oddEven : "-";
                 const seq = (game.sequence != null && game.sequence !== "") ? game.sequence : "-";
                 const hc = (game.hotCold != null && game.hotCold !== "") ? game.hotCold : "-";
-                const mode = game.gameMode || "-";
+                const mode = (game.gameMode === '자동' ? 'AI추천' : game.gameMode) || "-";
 
                 const setVal = game.set !== undefined ? game.set : game['세트'];
                 const setDisplay = setVal !== undefined && setVal !== null && setVal !== '' ? `${setVal}-` : '';
