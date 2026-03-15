@@ -439,12 +439,14 @@ body {
     box-sizing: border-box;
 }
 
-/* 가운데 패널 내부 박스 너비 동일 (네비·필터·선택공·저장공·당첨구조 등) */
+/* 가운데 패널 내부 박스 너비·패딩 통일 (네비·필터·선택공·저장공·당첨구조 등) */
 .game-panel .panel-inner > * {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 
 /* 화면 너비가 줄어들어 겹칠(wrap) 때의 순서 제어 */
@@ -974,6 +976,11 @@ input.result-filter-text {
     box-shadow: none;
     display: flex;
     flex-direction: column;
+}
+
+/* 가운데 패널 stats-box: 다른 ui-box와 수평 패딩 통일 (8px) */
+.game-panel .panel-inner > .stats-box {
+    padding: 6px 8px;
 }
 
 .stats-box h2 {
@@ -1572,6 +1579,95 @@ input[type=number] {
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+}
+
+/* 사과 말풍선 스타일 */
+.apology-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.apology-overlay.show { opacity: 1; }
+
+.apology-bubble {
+    position: relative;
+    background: linear-gradient(135deg, #fff 0%, #f0f4ff 100%);
+    border: 3px solid #4a6fa5;
+    border-radius: 24px;
+    padding: 32px 28px 24px;
+    max-width: 420px;
+    width: 90vw;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+    text-align: center;
+    animation: bubbleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    transform: scale(0.3);
+}
+@keyframes bubbleIn {
+    0% { transform: scale(0.3) translateY(40px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.apology-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 18px 14px 0 14px;
+    border-color: #4a6fa5 transparent transparent transparent;
+}
+.apology-bubble .apology-icon {
+    font-size: 3rem;
+    margin-bottom: 8px;
+    animation: bowDown 1.2s ease-in-out infinite alternate;
+}
+@keyframes bowDown {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(6px) rotate(-8deg); }
+}
+.apology-bubble h3 {
+    margin: 0 0 12px;
+    font-size: 1.15rem;
+    color: #2c3e6b;
+    font-weight: 800;
+}
+.apology-bubble p {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: #3a4a6a;
+    text-align: justify;
+    word-break: keep-all;
+}
+.apology-bubble .apology-sign {
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: #7a8aaa;
+    font-style: italic;
+}
+.apology-bubble .apology-close {
+    margin-top: 16px;
+    display: inline-block;
+    padding: 9px 28px;
+    background: linear-gradient(135deg, #4a6fa5, #6b8fc7);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.apology-bubble .apology-close:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(74,111,165,0.4);
 }
 
 /* 분석 말풍선 스타일 */

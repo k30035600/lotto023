@@ -90,25 +90,29 @@ def _to_latest_response(parsed):
     return out
 
 
-def fetch_latest_lotto():
+def fetch_latest_lotto(force=False):
     """
     동행복권 당첨번호 조회.
-    1. 로컬 파일(Lotto645.json/xlsx)에서 최신 회차 확인.
-    2. 최신 회차 날짜가 오늘보다 이전이거나, 오늘이 토요일 20:35~ 이후인데 아직 반영 안 된 경우에만 API 호출.
-    3. 그 외엔 로컬 데이터 반환.
+    1. force=True 이거나, 로컬이 최신이 아니면 API 호출.
+    2. 로컬 파일(Lotto645.json)에서 최신 회차 확인.
+    3. 오늘(KST)이 추첨일(토요일)이고 20:45 KST 이후면 항상 API 호출(동행복권 반영 시점).
+    4. 그 외엔 기존 로직대로 필요 시에만 API 호출.
     """
     import datetime
-    
+
+    # KST 기준 현재 시각 (서버 타임존과 무관하게 추첨일 판단)
+    kst = datetime.timezone(datetime.timedelta(hours=9))
+    now_kst = datetime.datetime.now(kst)
+    today_kst = now_kst.date()
+
     # 1. 로컬 데이터 확인
     local_parsed = None
     try:
-        # JSON 먼저 확인 (빠름)
         json_path = (BASE_DIR / '.source' / 'Lotto645.json').resolve()
         if json_path.is_file():
             with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if data and len(data) > 0:
-                    # 최신순 정렬 가정하고 첫 번째 요소, 혹은 drwNo 최대값 찾기
                     latest_local = data[0] if data[0].get('회차') else None
                     if latest_local:
                         local_parsed = {
@@ -116,7 +120,7 @@ def fetch_latest_lotto():
                             'drwNoDate': latest_local.get('날짜'),
                             'main': [int(latest_local.get(f'번호{i}')) for i in range(1, 7)],
                             'bnusNo': int(latest_local.get('보너스번호')),
-                            'rnk1WnAmt': latest_local.get('1등 당첨금액'), # 숫자 or None
+                            'rnk1WnAmt': latest_local.get('1등 당첨금액'),
                             'firstWinamnt': latest_local.get('1등 당첨금액'),
                             'firstPrzwnerCo': latest_local.get('1등 당첨자 수'),
                             'firstAccumamnt': latest_local.get('1등 총당첨금액'),
@@ -127,39 +131,34 @@ def fetch_latest_lotto():
         logger.warning('[Lotto645] 로컬 JSON 확인 중 오류: %s', e)
 
     # 2. API 호출 필요 여부 판단
-    need_api_call = True
-    if local_parsed:
-        need_api_call = False
+    need_api_call = force or (local_parsed is None)
+    if not need_api_call and local_parsed:
         try:
-            last_date_str = local_parsed.get('drwNoDate') # YYYY-MM-DD
+            last_date_str = local_parsed.get('drwNoDate')
             if last_date_str:
-                last_date = datetime.datetime.strptime(last_date_str, '%Y-%m-%d').date()
-                today = datetime.date.today()
-                
-                # 마지막 회차 날짜가 오늘보다 미래면(그럴 리 없지만) API 불필요
-                if last_date >= today:
+                last_date = datetime.datetime.strptime(last_date_str.strip()[:10], '%Y-%m-%d').date()
+                # 마지막 회차 날짜가 오늘(KST)보다 미래면 API 불필요
+                if last_date >= today_kst:
                     need_api_call = False
                 else:
-                    # 마지막 회차가 과거임. 다음 회차 추첨일 계산
-                    # 로또는 매주 토요일. last_date 요일: 5 (토요일)
-                    days_diff = (5 - last_date.weekday()) % 7 
-                    if days_diff == 0: days_diff = 7 # 다음주 토요일
+                    # 다음 추첨일(토요일) 계산
+                    days_diff = (5 - last_date.weekday()) % 7
+                    if days_diff == 0:
+                        days_diff = 7
                     next_draw_date = last_date + datetime.timedelta(days=days_diff)
-                    
-                    if today < next_draw_date:
-                        # 아직 다음 추첨일 안 됨 -> 로컬 데이터가 최신임
+
+                    if today_kst < next_draw_date:
                         need_api_call = False
-                    elif today == next_draw_date:
-                        # 오늘이 추첨일(토요일). 20:45 이후여야 API 호출 시도
-                        now = datetime.datetime.now()
-                        if now.hour < 20 or (now.hour == 20 and now.minute < 45):
-                             need_api_call = False
+                    elif today_kst == next_draw_date:
+                        # 오늘이 추첨일(토요일). 20:45 KST 이후면 항상 API 호출
+                        if now_kst.hour > 20 or (now_kst.hour == 20 and now_kst.minute >= 45):
+                            need_api_call = True
                         else:
-                             # 추첨 시간 지남. API 호출 필요
-                             need_api_call = True
+                            need_api_call = False
                     else:
-                        # 추첨일 지남 (일요일 등). API 호출 필요
                         need_api_call = True
+            else:
+                need_api_call = True
         except Exception as e:
             logger.warning('[Lotto645] 날짜 계산 오류, API 호출 시도: %s', e)
             need_api_call = True
@@ -316,17 +315,13 @@ def _sync_lotto645_xlsx():
             idx_date = c
         elif h == '보너스번호':
             idx_bonus = c
-        elif h and len(h) == 2 and h.startswith('번호') and h[1].isdigit():
-            idx_nums.append((int(h[1]), c))
+        elif h and len(h) == 3 and h.startswith('번호') and h[2].isdigit():
+            idx_nums.append((int(h[2]), c))
     idx_nums.sort(key=lambda x: x[0])
     idx_nums = [col for _, col in idx_nums]
     if idx_round is None or idx_date is None or len(idx_nums) != 6 or idx_bonus is None:
-        if header_row[:9] != ['회차', '날짜', '번호1', '번호2', '번호3', '번호4', '번호5', '번호6', '보너스번호']:
-            wb.close()
-            return False, 0, 0, 'Lotto645.xlsx 헤더(회차, 날짜, 번호1~6, 보너스번호)를 찾을 수 없습니다.', []
-        idx_round, idx_date = 1, 2
-        idx_nums = list(range(3, 9))
-        idx_bonus = 9
+        wb.close()
+        return False, 0, 0, 'Lotto645.xlsx 헤더(회차, 날짜, 번호1~6, 보너스번호)를 찾을 수 없습니다.', []
 
     existing_rounds = set()
     rows_by_round = {}
@@ -458,8 +453,8 @@ def _update_latest_lotto645(pre_fetched_data=None):
             idx_date = c
         elif h == '보너스번호':
             idx_bonus = c
-        elif h and len(h) == 2 and h.startswith('번호') and h[1].isdigit():
-            idx_nums.append((int(h[1]), c))
+        elif h and len(h) == 3 and h.startswith('번호') and h[2].isdigit():
+            idx_nums.append((int(h[2]), c))
     idx_nums.sort(key=lambda x: x[0])
     idx_nums = [col for _, col in idx_nums]
     if idx_round is None or idx_date is None or len(idx_nums) != 6 or idx_bonus is None:
@@ -600,7 +595,8 @@ def api_lotto645_meta():
 def api_lotto_latest():
     if request.method == 'OPTIONS':
         return '', 204, CORS_OPTIONS_HEADERS
-    data, err = fetch_latest_lotto()
+    force = request.args.get('force', '').lower() in ('1', 'true', 'yes')
+    data, err = fetch_latest_lotto(force=force)
     if err:
         return jsonify(returnValue='fail', error=err), 200, CORS_HEADERS
     return jsonify(data), 200, CORS_HEADERS
@@ -646,8 +642,8 @@ def _get_round_from_lotto645_xlsx(round_no):
             idx_date = c
         elif h == '보너스번호':
             idx_bonus = c
-        elif h and len(h) == 2 and h.startswith('번호') and h[1].isdigit():
-            idx_nums.append((int(h[1]), c))
+        elif h and len(h) == 3 and h.startswith('번호') and h[2].isdigit():
+            idx_nums.append((int(h[2]), c))
     idx_nums.sort(key=lambda x: x[0])
     idx_nums = [col for _, col in idx_nums]
     if idx_round is None or idx_date is None or len(idx_nums) != 6 or idx_bonus is None:
