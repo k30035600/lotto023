@@ -4145,10 +4145,8 @@ async function loadAndDisplayResults() {
                 <span style="color: ${SHAREHARMONY_PALETTE.textMuted}; margin: 0 4px;">/</span>
                 ${summaryHtml || '<span style="color: ' + SHAREHARMONY_PALETTE.textMuted + '; font-weight: normal;">미추첨 내역</span>'}
             `;
-            if (summaryHtml) {
-                summaryContainer.style.cursor = 'pointer';
-                summaryContainer.onclick = () => showResultAnalysisBubble(summary, lotto023Data, sortedGroups);
-            }
+            summaryContainer.style.cursor = 'pointer';
+            summaryContainer.onclick = () => showResultAnalysisBubble(summary, lotto023Data, sortedGroups);
         }
 
         resultContainer.innerHTML = ''; // 기존 요약 박스 제거 후 초기화
@@ -6997,7 +6995,35 @@ function showResultAnalysisBubble(summaryData, allGames, sortedGroups) {
         const wr = AppState.allLotto645Data.find(r => r.round === round);
         if (wr && wr.numbers) { latestRound = round; latestGames = games; latestWinRound = wr; break; }
     }
-    if (!latestRound || !latestWinRound) return;
+    if (!latestRound || !latestWinRound) {
+        const pendingRound = sortedGroups.length > 0 ? Number(sortedGroups[0][0]) : null;
+        const pendingCount = sortedGroups.length > 0 ? sortedGroups[0][1].length : allGames.length;
+        const overlay = document.createElement('div');
+        overlay.className = 'apology-overlay';
+        overlay.innerHTML = `
+        <div class="apology-bubble">
+            <div class="apology-icon">⏳</div>
+            <h3>추첨 대기 중입니다</h3>
+            <p style="text-align:justify;word-break:keep-all;">
+                ${pendingRound ? pendingRound + '회' : ''} <b>${pendingCount}게임</b>이 저장되어 있으며,
+                아직 해당 회차의 추첨이 진행되지 않았습니다.
+            </p>
+            <p style="text-align:justify;word-break:keep-all;">
+                추첨 결과가 반영되면 당첨 여부와 상세 분석을
+                확인하실 수 있습니다.
+            </p>
+            <p style="text-align:center;font-weight:700;color:#1565C0;margin-top:14px;">
+                행운을 빕니다! 🍀
+            </p>
+            <button class="apology-close" style="background:linear-gradient(135deg,#1565C0,#42A5F5);" onclick="this.closest('.apology-overlay').remove()">
+                기대하고 있을게! 🤞
+            </button>
+        </div>`;
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('show'));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        return;
+    }
 
     const rs = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     latestGames.forEach(g => {
