@@ -54,6 +54,12 @@ const AppState = {
     sumRangeStart: 21,
     sumRangeEnd: 255,
 
+    /** 저장 목록(Lotto023): null이면 전체 회차, 숫자면 해당 회차만 표시 */
+    resultListRoundFilter: null,
+
+    /** 미추첨 게임 정성도 점수 순위 정렬 토글 */
+    pendingScoreSortEnabled: false,
+
     /**
      * 상태 초기화
      */
@@ -76,6 +82,7 @@ const AppState = {
             oddEven: "none",
             hotCold: "none"
         };
+        this.resultListRoundFilter = null;
     },
 
     /**

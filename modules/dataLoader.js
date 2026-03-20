@@ -172,6 +172,8 @@ function normalizeLottoData(data) {
             }
             if (numbers.length === 6) {
                 normalized.numbers = numbers;
+                const ok = numbers.every(n => Number.isFinite(n) && n >= 1 && n <= 45) && new Set(numbers).size === 6;
+                if (!ok) normalized.invalidLottoPick = true;
             }
         }
 
@@ -216,6 +218,22 @@ function normalizeLottoData(data) {
         if (item['게임선택'] !== undefined) {
             normalized.gameMode = item['게임선택'];
         }
+
+        // 10. 선택합계 -> pickSum (없으면 번호 6개 합)
+        if (item['선택합계'] != null && item['선택합계'] !== '') {
+            normalized.pickSum = Number(item['선택합계']);
+        } else if (normalized.numbers && normalized.numbers.length === 6) {
+            normalized.pickSum = normalized.numbers.reduce((a, b) => a + b, 0);
+        }
+
+        // 11. B of B 순위 열 Perfect순위 (Lotto023.xlsx 마지막 열)
+        if (item['Perfect순위'] != null && String(item['Perfect순위']).trim() !== '') {
+            const pr = parseInt(String(item['Perfect순위']).trim(), 10);
+            if (!Number.isNaN(pr) && pr > 0) normalized.perfectRank = pr;
+        }
+
+        delete normalized['조회시작'];
+        delete normalized['조회종료'];
 
         return normalized;
     });
@@ -280,14 +298,8 @@ async function loadLotto645Data(basePath = '') {
 async function loadLotto023Data(basePath = '') {
     console.time('LoadLotto023');
 
-    // 1. 캐시 확인
-    const cached = getFromCache(CACHE_KEYS.LOTTO023);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-        console.timeEnd('LoadLotto023');
-        return cached;
-    }
-
-    // 2. XLSX 로드 (원본 데이터 소스)
+    // 원본 XLSX를 우선 로드(Excel·스크립트로 파일만 바꾼 경우에도 화면과 일치).
+    // 실패 시(오프라인·file:// 등)에만 localStorage 캐시로 폴백.
     try {
         const xlsxUrl = `${basePath}.source/Lotto023.xlsx`;
         const data = await loadXLSX(xlsxUrl);
@@ -300,6 +312,12 @@ async function loadLotto023Data(basePath = '') {
         }
     } catch (error) {
         console.error('Lotto023 XLSX 로드 실패:', error);
+    }
+
+    const cached = getFromCache(CACHE_KEYS.LOTTO023);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+        console.timeEnd('LoadLotto023');
+        return cached;
     }
 
     console.timeEnd('LoadLotto023');

@@ -128,6 +128,16 @@
     /* 박스 공통 배경 (다크) */
     --color-box-bg: var(--color-primary-dark);
 
+    /* 게임공·저장공 6열·요약 버튼 캡 공통 너비 */
+    --result-saved-actions-cap-width: 10.5rem;
+    /* 저장 목록: 6공~보너스 구간(앞 여백 + [+] 가운데 + 22px 공) 고정 폭 */
+    /* padding-left 8 + '+' 좌 2px + 글리프 + 우 2px + 보너스 22 */
+    --result-saved-slot7-width: 48px;
+    /* [회차] 열 — 괄호에 맞게 타이트하게; 줄인 폭은 합계([n]) 뒤 여백으로 이전 */
+    --result-col-round-width: 2.68em;
+    --result-saved-after-sum-gap: 22px;
+    /* 저장 목록 메타 안 게임모드: '반자동' 3글자 너비로 통일(더 긴 라벨은 이 칸만 말줄임) */
+    --result-saved-mode-width: 3.25em;
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 6px;
@@ -144,37 +154,37 @@
 .panel-inner,
 #statsList,
 #viewNumbersList,
-#resultContainer,
+#resultScrollArea,
 .stats-list {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border-dark) transparent;
+    scrollbar-color: var(--color-table-header) transparent;
 }
 .panel-inner::-webkit-scrollbar,
 #statsList::-webkit-scrollbar,
 #viewNumbersList::-webkit-scrollbar,
-#resultContainer::-webkit-scrollbar,
+#resultScrollArea::-webkit-scrollbar,
 .stats-list::-webkit-scrollbar {
     width: 8px;
 }
 .panel-inner::-webkit-scrollbar-track,
 #statsList::-webkit-scrollbar-track,
 #viewNumbersList::-webkit-scrollbar-track,
-#resultContainer::-webkit-scrollbar-track,
+#resultScrollArea::-webkit-scrollbar-track,
 .stats-list::-webkit-scrollbar-track {
     background: transparent;
 }
 .panel-inner::-webkit-scrollbar-thumb,
 #statsList::-webkit-scrollbar-thumb,
 #viewNumbersList::-webkit-scrollbar-thumb,
-#resultContainer::-webkit-scrollbar-thumb,
+#resultScrollArea::-webkit-scrollbar-thumb,
 .stats-list::-webkit-scrollbar-thumb {
-    background: var(--color-border-dark);
+    background: var(--color-table-header);
     border-radius: 4px;
 }
 .panel-inner::-webkit-scrollbar-thumb:hover,
 #statsList::-webkit-scrollbar-thumb:hover,
 #viewNumbersList::-webkit-scrollbar-thumb:hover,
-#resultContainer::-webkit-scrollbar-thumb:hover,
+#resultScrollArea::-webkit-scrollbar-thumb:hover,
 .stats-list::-webkit-scrollbar-thumb:hover {
     background: var(--color-accent);
 }
@@ -877,21 +887,326 @@ input.result-filter-text {
     margin: 0;
 }
 
+/* 저장 목록·요약: 회차 열 — 요약 [N회]·목록 동일 폰트(rem)·세로 중앙 */
+.result-col-round {
+    flex: 0 0 var(--result-col-round-width);
+    min-width: var(--result-col-round-width);
+    max-width: var(--result-col-round-width);
+    text-align: left;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    font-weight: bold;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+.result-col-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    /* 5등·B of B 배지 최대폭 기준(요약 바 빈 칸과 목록 열 정렬 공통) */
+    flex: 0 0 64px;
+    width: 64px;
+    min-width: 64px;
+    max-width: 64px;
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 등수 배지를 열의 오른쪽(메타 텍스트 쪽)에 붙여 5등 우측 빈칸 제거 */
+#resultContainer .result-col-rank {
+    justify-content: flex-end;
+}
+
+/* 순위 표시: 파란 박스, 3자리 고정 폭 (미추첨·추첨완료 공통) */
+.result-sort-rank {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+    background-color: #69C8F2;
+    padding: 1px 4px;
+    border-radius: 4px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.2em;
+    width: 2.2em;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+/* 등위가 없을 때 빈 공간 유지 */
+.result-empty-rank {
+    flex-shrink: 0;
+}
+/* 초록마을 등 구 HTML 호환 */
+.result-summary-align-row {
+    display: grid;
+    grid-template-columns: var(--result-col-round-width) 64px minmax(0, 1fr);
+    column-gap: 4px;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.result-summary-box--bar .result-summary-align-row {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* 요약 바: 목록 행과 동일 좌우 8px·메인~체크 6px gap → 회차/공 열 정렬 */
+.result-summary-box--bar {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    border: 1px solid var(--color-border-dark);
+    border-radius: 6px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.result-summary-header-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* 회차 | 등수 | 요약 | 번호저장캡(6공 너비) — .result-saved-main 과 동일 열 */
+.result-summary-header-main {
+    flex: 1 1 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: var(--result-col-round-width) 64px minmax(0, 1fr) var(--result-saved-actions-cap-width);
+    column-gap: 4px;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.result-summary-display-contents {
+    display: contents;
+}
+
+.result-summary-box--bar .result-summary-toolbar-end {
+    justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+/* inline-flex + ellipsis는 좁은 폭에서 등수 집계가 통째로 잘리거나 줄이 이상하게 나뉨 */
+.result-summary-main {
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
+    display: block;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+.result-summary-box--bar .result-summary-main {
+    flex: 1 1 0;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* 미추첨: 행과 동일하게 추가 좌패딩 없음(회차 열 정렬), 세트-게임과 시작 위치 맞춤 */
+.result-summary-box--bar #resultSummaryHost.result-summary-left--pending .result-summary-main {
+    text-align: left;
+    overflow-x: visible;
+    /* 세트-게임과 시작 위치 맞춤 (폰트 크기는 원래대로 유지) */
+}
+
+/* 회차 필터 시 [회차] 클릭으로 B of B 순 토글(미추첨·추첨 완료 공통) */
+.result-summary-box--bar #resultSummaryHost.result-summary-left--filtered-round .result-summary-round-bracket {
+    cursor: pointer;
+    /* 밑줄 제거: 클릭 가능하다는 표시는 cursor만으로 충분 */
+}
+/* 미추첨: 미추첨 N게임 줄도 토글 */
+.result-summary-box--bar #resultSummaryHost.result-summary-left--pending .result-summary-pending-toggle {
+    cursor: pointer;
+    /* 밑줄 제거: 세트-게임과 동일한 스타일 */
+    text-decoration: none;
+    color: var(--color-text-primary);
+}
+/* 추첨 완료: 요약 본문은 말풍선 */
+.result-summary-box--bar #resultSummaryHost.result-summary-left--filtered-round:not(.result-summary-left--pending) .result-summary-drawn-main {
+    cursor: pointer;
+}
+
+.result-row-round-link {
+    cursor: pointer;
+    color: var(--color-text-primary);
+    /* 밑줄 제거: 세트-게임과 동일한 스타일 */
+    text-decoration: none;
+}
+.result-summary-box #resultSummaryHost .result-summary-round-bracket {
+    color: var(--color-accent-light) !important;
+    font-weight: 700;
+    /* 밑줄 제거: 세트-게임과 동일한 스타일 */
+    text-decoration: none;
+    justify-self: start;
+    align-self: center;
+    display: flex;
+    align-items: center;
+}
+
+/* 요약 바 전체: 배경을 살짝 밝혀 목록과 구분 */
+.result-summary-box.result-summary-box--bar {
+    background: linear-gradient(180deg, #2c3b47 0%, #1b2631 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* 번호저장·선택삭제·전체선택: 레이아웃만(배경·테두리 없음 — 버튼 높이 통일) */
+.result-summary-toolbar-end {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.result-summary-box--bar #deleteSelectedBtn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+.result-summary-box--bar #saveBtn:disabled {
+    opacity: 0.85;
+    filter: brightness(1.08);
+}
+
+/* 저장공 요약 바: 집계는 남는 폭 사용(한 줄), 버튼 캡은 6공 열과 동일 폭 */
+.result-summary-box--bar #resultSummaryHost.result-summary-left,
+.result-summary-box--bar .result-summary-header-main.result-summary-left {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    box-sizing: border-box;
+}
+.result-summary-box--bar .result-summary-actions-mid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    min-width: 0;
+    width: 100%;
+}
+/* 빨간 박스 구역에 해당하는 고정 너비: 두 버튼만 균등 배치 */
+.result-summary-box--bar .result-summary-buttons-cap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--result-saved-actions-cap-width);
+    max-width: min(var(--result-saved-actions-cap-width), 38vw);
+    gap: 5px;
+    box-sizing: border-box;
+}
+.result-summary-box--bar .result-summary-buttons-cap .result-summary-action-slot {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    max-width: 50%;
+}
+.result-summary-box--bar .result-summary-buttons-cap #saveBtn,
+.result-summary-box--bar .result-summary-buttons-cap #deleteSelectedBtn {
+    white-space: nowrap;
+    width: 100%;
+    max-width: 100%;
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 0.74rem;
+}
+/* 목록 행 deleteCheckbox와 동일: 18px 고정, resultLine gap 6px과 맞춤 */
+.result-summary-box--bar .result-summary-checkbox-col {
+    flex: 0 0 18px;
+    width: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    box-sizing: border-box;
+}
+@media (max-width: 520px) {
+    .result-summary-header-line {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+    .result-summary-header-main {
+        flex: 1 1 100%;
+        grid-template-columns: 1fr;
+        min-width: 0;
+    }
+    .result-summary-box--bar #resultSummaryHost.result-summary-left,
+    .result-summary-box--bar .result-summary-header-main.result-summary-left {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .result-summary-box--bar .result-summary-toolbar-end {
+        justify-self: stretch;
+        width: 100%;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+    .result-summary-box--bar .result-summary-actions-mid {
+        flex: 1 1 auto;
+        min-width: 0;
+        justify-content: center;
+    }
+    .result-summary-box--bar .result-summary-buttons-cap {
+        width: min(100%, 11rem);
+        max-width: 100%;
+    }
+    #resultContainer .result-saved-balls-cap {
+        width: min(100%, 11rem);
+        max-width: 100%;
+    }
+    .game-balls-wrap {
+        width: min(100%, 11rem);
+        max-width: 100%;
+    }
+}
+
 /* 저장공 요약 박스: 다크 배경에 어울리는 텍스트/입력/버튼, 텍스트 크기 통일 */
 .result-summary-box {
     border-color: var(--color-border-dark) !important;
     font-size: 0.8rem;
 }
 .result-summary-box #resultSummary,
+.result-summary-box #resultSummaryHost,
 .result-summary-box .result-summary-left,
 .result-summary-box #saveRound {
     font-size: 0.8rem;
 }
 .result-summary-box #resultSummary,
+.result-summary-box #resultSummaryHost,
 .result-summary-box .result-summary-left {
     color: var(--color-bg-white) !important;
 }
-.result-summary-box #resultSummary span {
+.result-summary-box #resultSummary span,
+.result-summary-box #resultSummaryHost span {
     color: var(--color-bg-white) !important;
 }
 .result-summary-box #saveRound {
@@ -983,6 +1298,33 @@ input.result-filter-text {
     padding: 6px 8px;
 }
 
+/* ── 중앙 패널 3단 영역 구분 (상/중/하) ── */
+.zone-top,
+.zone-mid,
+.zone-bottom {
+    border: 1px solid rgba(55, 71, 79, 0.35) !important;
+    border-radius: var(--radius-md);
+    margin-bottom: 4px;
+    padding: 6px 8px !important;
+}
+
+.zone-top {
+    background: rgba(55, 71, 79, 0.03);
+}
+
+.zone-mid {
+    background: rgba(55, 71, 79, 0.07) !important;
+}
+
+.zone-bottom {
+    background: rgba(55, 71, 79, 0.12) !important;
+}
+
+/* 하(당첨조건) 테이블 행 배경을 바탕색과 동일하게 */
+.zone-bottom table tbody tr {
+    background: transparent !important;
+}
+
 .stats-box h2 {
     font-size: 1.1rem;
     font-weight: 700;
@@ -992,8 +1334,8 @@ input.result-filter-text {
     color: var(--color-text-primary);
 }
 
-.game-panel>#gameBox {
-    background: var(--panel-mid-box);
+.game-panel #gameBox {
+    background: transparent;
 }
 
 /* 당첨공 h2 → 그린 */
@@ -1020,7 +1362,7 @@ input.result-filter-text {
     border-radius: 0;
     box-shadow: none !important;
     box-sizing: border-box;
-    background: var(--color-bg-white);
+    background: transparent;
 }
 
 .number-grid-container {
@@ -1040,8 +1382,10 @@ input.result-filter-text {
     border: none !important;
     border-radius: 0;
     box-shadow: none !important;
-    padding: 6px 0 !important;
-    background: var(--panel-mid-box);
+    /* 게임·저장 가독성: 합계가 잘리지 않도록 우측만 살짝 */
+    padding: 6px 10px 6px 0 !important;
+    background: transparent;
+    box-sizing: border-box;
 }
 
 #gameSetsContainer {
@@ -1051,11 +1395,11 @@ input.result-filter-text {
     gap: 0 !important;
 }
 
-/* 게임 세트 행 (G1~G5) — 요소 밀착 + 우측 정보 오른쪽 정렬 */
+/* 게임 세트 행 (G1~G5) — 저장공과 동일 gap, 우측 공 열은 버튼 캡 너비에 맞춤 */
 .game-set-row {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     padding: 0 8px;
     box-sizing: border-box;
     flex: 1;
@@ -1085,13 +1429,28 @@ input.result-filter-text {
     flex-shrink: 0;
 }
 
+/* 6공+합계: 한 덩어리로만 우측 배치(행 안에서 벌어지지 않음). 남는 폭은 확률칩~이 덩어리 사이에만 생김 */
+.game-row-tail {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    margin-left: auto;
+    margin-right: 0;
+    box-sizing: border-box;
+}
+
+/* 6공 영역: 저장공 .result-saved-balls-cap과 동일 너비·간격 */
 .game-balls-wrap {
     display: flex;
-    gap: 3px;
-    justify-content: center;
+    gap: 2px;
+    justify-content: space-between;
     align-items: center;
-    flex: 1;
-    min-width: 0;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    width: var(--result-saved-actions-cap-width);
+    max-width: min(var(--result-saved-actions-cap-width), 38vw);
+    box-sizing: border-box;
 }
 
 .game-right-group {
@@ -1099,15 +1458,20 @@ input.result-filter-text {
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
-    margin-left: auto;
+    margin-left: 0;
 }
 
 .game-right-group .game-sum {
     font-size: 0.68rem;
     font-weight: bold;
     color: var(--color-error);
-    text-align: right;
-    min-width: 22px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+    width: max-content;
+    padding: 0 2px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .game-set-row > .game-prob,
@@ -1458,14 +1822,180 @@ input[type=number] {
     flex-direction: column;
 }
 
+/* 헤더(요약·전체선택) + 목록을 함께 스크롤 → 스크롤바가 헤더 상단까지 이어져 체크박스 열 정렬 */
+#resultScrollArea.result-scroll-area {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 #resultContainer {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* 저장공 게임 행: 당첨공 목록(.round-number-line)과 동일한 세로 밀도(22px 공 기준 24px 줄) */
+#resultContainer .result-saved-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    min-height: 24px;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    box-sizing: border-box;
+}
+
+/* 회차 | 등수 | 메타(남는 폭) | 공열 — 행마다 같은 열 시작선 */
+#resultContainer .result-saved-main {
+    display: grid;
+    grid-template-columns: var(--result-col-round-width) 64px minmax(0, 1fr) max-content;
+    column-gap: 4px;
+    align-items: center;
     flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+#resultContainer .result-saved-main > .result-col-round {
+    justify-self: start;
+    align-self: center;
+    display: flex;
+    align-items: center;
+}
+
+#resultContainer .result-saved-main > .result-col-rank {
+    justify-self: stretch;
+}
+
+/* 메타: 말줄임 없음 — 좁으면 이 칸만 가로 스크롤 */
+#resultContainer .result-saved-detail {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    gap: 0;
+    font-size: 0.64rem;
+    line-height: 1.15;
+    color: var(--color-text-primary);
+    margin-right: var(--result-saved-after-sum-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+#resultContainer .result-saved-detail-lead,
+#resultContainer .result-saved-detail-stats,
+#resultContainer .result-saved-detail-ac,
+#resultContainer .result-saved-detail-tail {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+#resultContainer .result-saved-mode {
+    flex: 0 0 var(--result-saved-mode-width);
+    width: var(--result-saved-mode-width);
+    min-width: var(--result-saved-mode-width);
+    max-width: var(--result-saved-mode-width);
+    text-align: left;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#resultContainer .result-saved-detail-tail {
+    margin: 0;
+    padding: 0;
+    letter-spacing: 0;
+}
+
+/* 6개 저장공: 요약 바 번호저장+선택삭제 캡과 동일 너비로 균형 */
+#resultContainer .result-saved-balls-row {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    /* 6공~보너스 블록 간격은 슬롯 padding-left로 통일 */
+    gap: 0;
+    box-sizing: border-box;
+}
+
+/* 6공~보너스: padding-left = 6번째 공 직후 호흡, 안쪽은 flex로 '+' 를 보너스 직전 구간의 가운데에 배치 */
+#resultContainer .result-saved-slot7 {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 0 0 var(--result-saved-slot7-width);
+    width: var(--result-saved-slot7-width);
+    min-width: var(--result-saved-slot7-width);
+    max-width: var(--result-saved-slot7-width);
+    box-sizing: border-box;
+    padding-left: 8px;
+    flex-shrink: 0;
+    gap: 0;
+}
+
+#resultContainer .result-saved-slot7-plus {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    line-height: 1;
+    text-align: center;
+    /* 보너스 볼과의 간격: '+' 기준 좌·우 각 2px */
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+#resultContainer .result-saved-slot7-ball {
+    flex: 0 0 22px;
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+/* 미추첨 회차: 보너스 빈 공 — 테두리 없음(플레이스홀더만) */
+#resultContainer .result-saved-bonus-empty {
+    border-radius: 50%;
+    background: var(--color-bg-white, #fff) !important;
+    color: #333 !important;
+    border: none !important;
+    opacity: 0.6;
+    box-shadow: none !important;
+    box-sizing: border-box;
+    padding: 0;
+    line-height: 1;
+}
+
+#resultContainer .result-saved-balls-cap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    width: var(--result-saved-actions-cap-width);
+    max-width: min(var(--result-saved-actions-cap-width), 38vw);
+    box-sizing: border-box;
+    gap: 2px;
 }
 
 .modal {
