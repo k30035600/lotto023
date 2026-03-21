@@ -47,6 +47,58 @@ app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
 app.config['JSON_AS_ASCII'] = False
 logger = get_logger(__name__)
 
+# Lotto023.xlsx 표준 컬럼 (조회시작/조회종료 없음, 게임선택 다음에 선택합계)
+LOTTO023_CANONICAL_HEADERS = (
+    '회차', '세트', '게임', '홀짝', '연속', '핫콜', '게임선택', '선택합계',
+    '선택1', '선택2', '선택3', '선택4', '선택5', '선택6',
+    'Perfect순위',
+)
+
+
+def _lotto023_row_dict(headers, row):
+    d = {}
+    for i, h in enumerate(headers):
+        if h is None:
+            continue
+        key = str(h).strip()
+        if not key:
+            continue
+        d[key] = row[i] if i < len(row) else None
+    return d
+
+
+def _migrate_lotto023_rows(headers, data_rows):
+    """구 형식 시트를 표준 헤더로 맞추고, 선택합계가 비어 있으면 선택1~6으로 계산."""
+    headers = [str(h).strip() if h is not None else '' for h in (headers or [])]
+    canon = list(LOTTO023_CANONICAL_HEADERS)
+    new_rows = []
+    for r in data_rows:
+        if r is None:
+            continue
+        r = list(r)
+        rowd = _lotto023_row_dict(headers, r)
+        new_r = []
+        for h in canon:
+            if h == '선택합계':
+                v = rowd.get('선택합계')
+                if v is not None and str(v).strip() != '':
+                    new_r.append(str(v).strip())
+                else:
+                    try:
+                        s = 0
+                        for i in range(1, 7):
+                            x = rowd.get('선택%d' % i)
+                            if x is not None and str(x).strip() != '':
+                                s += int(str(x).strip())
+                        new_r.append(str(s) if s else '')
+                    except (ValueError, TypeError):
+                        new_r.append('')
+            else:
+                v = rowd.get(h)
+                new_r.append('' if v is None else v)
+        new_rows.append(new_r)
+    return canon, new_rows
+
 
 
 def _fmt_amount(val):
@@ -876,15 +928,14 @@ def api_save_lotto023():
         source_dir.mkdir(parents=True, exist_ok=True)
         xlsx_path = (source_dir / 'Lotto023.xlsx').resolve()
         
-        # 헤더 정의 ('세트' 추가)
-        headers = ['회차', '세트', '게임', '홀짝', '연속', '핫콜', '게임선택', '선택1', '선택2', '선택3', '선택4', '선택5', '선택6']
-        
+        default_headers = list(LOTTO023_CANONICAL_HEADERS)
+
         # 파일이 없으면 새로 생성
         if not xlsx_path.exists():
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Lotto023"
-            for c, header in enumerate(headers, 1):
+            for c, header in enumerate(default_headers, 1):
                 ws.cell(1, c, value=header)
             wb.save(xlsx_path)
             wb.close()
@@ -903,13 +954,14 @@ def api_save_lotto023():
         
         # '세트' 컬럼 인덱스 확인 (없으면 추가해야 함)
         if '세트' not in header_in_file:
-            # 헤더에 '세트' 주입 및 기존 데이터에 빈 칸 추가
             header_in_file.insert(1, '세트')
             for r in data_rows:
-                r.insert(1, '1') # 기본값 1세트
-            headers = header_in_file
-        else:
-            headers = header_in_file
+                r.insert(1, '1')
+
+        # 표준 헤더로 통일 (조회시작/종료 제거, 선택합계 보강)
+        header_in_file, data_rows = _migrate_lotto023_rows(header_in_file, data_rows)
+
+        headers = header_in_file
 
         idx_round = headers.index('회차')
         idx_set = headers.index('세트')
@@ -973,11 +1025,28 @@ def api_save_lotto023():
             # 새 행 생성
             new_row = [None] * len(headers)
             for i, h in enumerate(headers):
-                if h == '회차': new_row[i] = str(target_round)
-                elif h == '세트': new_row[i] = str(next_set)
-                elif h == '게임': new_row[i] = str(next_game)
+                if h == '회차':
+                    new_row[i] = str(target_round)
+                elif h == '세트':
+                    new_row[i] = str(next_set)
+                elif h == '게임':
+                    new_row[i] = str(next_game)
+                elif h == '선택합계':
+                    sv = g.get('선택합계')
+                    if sv is not None and str(sv).strip() != '':
+                        new_row[i] = str(sv).strip()
+                    else:
+                        try:
+                            s = sum(int(g.get('선택%d' % j, 0) or 0) for j in range(1, 7))
+                            new_row[i] = str(s) if s else ''
+                        except (ValueError, TypeError):
+                            new_row[i] = ''
+                elif h == 'Perfect순위':
+                    pv = g.get('Perfect순위')
+                    new_row[i] = '' if pv is None or str(pv).strip() == '' else str(pv).strip()
                 else:
-                    new_row[i] = g.get(h, '')
+                    val = g.get(h, '')
+                    new_row[i] = '' if val is None else val
             
             data_rows.append(new_row)
             added_count += 1
@@ -1011,6 +1080,104 @@ def api_save_lotto023():
         return jsonify(returnValue='fail', error='Lotto023.xlsx 파일이 다른 프로그램에서 열려 있습니다.'), 200, CORS_HEADERS
     except Exception as e:
         logger.error('[Lotto023] 저장 중 오류: %s', e)
+        return jsonify(returnValue='fail', error=str(e)), 200, CORS_HEADERS
+
+
+@app.route('/api/save-lotto-bob', methods=['POST', 'OPTIONS'])
+def api_save_lotto_bob():
+    """행운번호 동일 컬럼 구조의 게임 배열을 .source/LottoBoB.json 에 저장(덮어쓰기)."""
+    if request.method == 'OPTIONS':
+        return '', 204, CORS_OPTIONS_HEADERS
+    try:
+        data = request.get_json(silent=True)
+        if not data or 'games' not in data:
+            return jsonify(returnValue='fail', error='games 배열이 필요합니다.'), 400, CORS_HEADERS
+        games = data['games']
+        if not isinstance(games, list):
+            return jsonify(returnValue='fail', error='games는 배열이어야 합니다.'), 400, CORS_HEADERS
+        source_dir = BASE_DIR / '.source'
+        source_dir.mkdir(parents=True, exist_ok=True)
+        out_path = (source_dir / 'LottoBoB.json').resolve()
+        payload = {
+            'savedAt': datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).isoformat(),
+            'count': len(games),
+            'games': games,
+        }
+        with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        return jsonify(returnValue='success', count=len(games)), 200, CORS_HEADERS
+    except Exception as e:
+        logger.error('[LottoBoB] 저장 오류: %s', e)
+        return jsonify(returnValue='fail', error=str(e)), 200, CORS_HEADERS
+
+
+@app.route('/api/rewrite-lotto023', methods=['POST', 'OPTIONS'])
+def api_rewrite_lotto023():
+    """Lotto023.xlsx 전체 데이터 행을 요청 본문의 games(표준 컬럼 dict 목록)로 교체."""
+    if request.method == 'OPTIONS':
+        return '', 204, CORS_OPTIONS_HEADERS
+
+    try:
+        data = request.get_json(silent=True)
+        if not data or 'games' not in data:
+            return jsonify(returnValue='fail', error='games 배열이 필요합니다.'), 400, CORS_HEADERS
+
+        import openpyxl
+        games = data['games']
+        if not isinstance(games, list):
+            return jsonify(returnValue='fail', error='games는 배열이어야 합니다.'), 400, CORS_HEADERS
+
+        source_dir = BASE_DIR / '.source'
+        source_dir.mkdir(parents=True, exist_ok=True)
+        xlsx_path = (source_dir / 'Lotto023.xlsx').resolve()
+        canon = list(LOTTO023_CANONICAL_HEADERS)
+        idx_round = canon.index('회차')
+        idx_set = canon.index('세트')
+        idx_game = canon.index('게임')
+
+        data_rows = []
+        for g in games:
+            if not isinstance(g, dict):
+                continue
+            row = []
+            for h in canon:
+                v = g.get(h)
+                if v is None or v == '':
+                    row.append('')
+                elif isinstance(v, str):
+                    row.append(v.strip())
+                else:
+                    row.append(str(v))
+            data_rows.append(row)
+
+        def sort_key(x):
+            try:
+                r = -int(x[idx_round]) if x[idx_round] not in (None, '') else 0
+                s = int(x[idx_set]) if x[idx_set] not in (None, '') else 0
+                gn = int(x[idx_game]) if x[idx_game] not in (None, '') else 0
+                return (r, s, gn)
+            except (ValueError, TypeError):
+                return (0, 0, 0)
+
+        data_rows.sort(key=sort_key)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Lotto023'
+        for c, header in enumerate(canon, 1):
+            ws.cell(1, c, value=header)
+        for r_idx, r_data in enumerate(data_rows, 2):
+            for c_idx, val in enumerate(r_data, 1):
+                ws.cell(r_idx, c_idx, value=val)
+        wb.save(xlsx_path)
+        wb.close()
+
+        return jsonify(returnValue='success', count=len(data_rows)), 200, CORS_HEADERS
+
+    except PermissionError:
+        return jsonify(returnValue='fail', error='Lotto023.xlsx 파일이 다른 프로그램에서 열려 있습니다.'), 200, CORS_HEADERS
+    except Exception as e:
+        logger.error('[Lotto023] rewrite 오류: %s', e)
         return jsonify(returnValue='fail', error=str(e)), 200, CORS_HEADERS
 
 
@@ -1183,6 +1350,22 @@ def api_shutdown():
     return resp
 
 
+@app.route('/api/<path:api_unknown>', methods=['POST', 'OPTIONS'])
+def api_post_unknown(api_unknown):
+    """명시되지 않은 /api/* POST. 구버전 프로세스에서는 BoB 등 신규 라우트가 없어 /<path>에 걸려 405 HTML이 나오므로 JSON으로 안내."""
+    if request.method == 'OPTIONS':
+        return '', 204, CORS_OPTIONS_HEADERS
+    tail = (api_unknown or '').strip('/')
+    if tail == 'save-lotto-bob':
+        err = (
+            'LottoBoB API가 이 서버 프로세스에 없습니다. 터미널에서 Flask를 종료(Ctrl+C)한 뒤 '
+            '프로젝트 루트의 최신 server.py로 다시 실행하세요: python server.py'
+        )
+    else:
+        err = '알 수 없는 API입니다: /api/' + api_unknown
+    return jsonify(returnValue='fail', error=err), 404, CORS_HEADERS
+
+
 @app.route('/')
 def index():
     resp = send_from_directory(BASE_DIR, 'index.html')
@@ -1190,7 +1373,7 @@ def index():
     return resp
 
 
-@app.route('/<path:path>')
+@app.route('/<path:path>', methods=['GET', 'HEAD'])
 def static_file(path):
     full = (BASE_DIR / path).resolve()
     base_resolved = BASE_DIR.resolve()
