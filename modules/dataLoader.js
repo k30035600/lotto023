@@ -172,6 +172,8 @@ function normalizeLottoData(data) {
             }
             if (numbers.length === 6) {
                 normalized.numbers = numbers;
+                const ok = numbers.every(n => Number.isFinite(n) && n >= 1 && n <= 45) && new Set(numbers).size === 6;
+                if (!ok) normalized.invalidLottoPick = true;
             }
         }
 

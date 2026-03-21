@@ -55,6 +55,25 @@ LOTTO023_CANONICAL_HEADERS = (
 )
 
 
+def _lotto023_pick_valid(g):
+    """게임 dict의 선택1~6이 1~45 정수 6개이고 서로 중복이 없으면 True."""
+    if not isinstance(g, dict):
+        return False
+    nums = []
+    for j in range(1, 7):
+        raw = g.get('선택%d' % j)
+        if raw is None or str(raw).strip() == '':
+            return False
+        try:
+            n = int(str(raw).strip())
+        except (ValueError, TypeError):
+            return False
+        if n < 1 or n > 45:
+            return False
+        nums.append(n)
+    return len(nums) == 6 and len(set(nums)) == 6
+
+
 def _lotto023_row_dict(headers, row):
     d = {}
     for i, h in enumerate(headers):
@@ -1139,6 +1158,11 @@ def api_rewrite_lotto023():
         for g in games:
             if not isinstance(g, dict):
                 continue
+            if not _lotto023_pick_valid(g):
+                return jsonify(
+                    returnValue='fail',
+                    error='rewrite: 유효하지 않은 선택 번호가 있습니다. (회차 %s)' % g.get('회차', '?'),
+                ), 400, CORS_HEADERS
             row = []
             for h in canon:
                 v = g.get(h)
@@ -1178,6 +1202,81 @@ def api_rewrite_lotto023():
         return jsonify(returnValue='fail', error='Lotto023.xlsx 파일이 다른 프로그램에서 열려 있습니다.'), 200, CORS_HEADERS
     except Exception as e:
         logger.error('[Lotto023] rewrite 오류: %s', e)
+        return jsonify(returnValue='fail', error=str(e)), 200, CORS_HEADERS
+
+
+def _perfect_json_row_dict_from_game(g, canon):
+    if not isinstance(g, dict):
+        return None
+    row = {}
+    for h in canon:
+        v = g.get(h)
+        if v is None or v == '':
+            row[h] = ''
+        elif isinstance(v, str):
+            row[h] = v.strip()
+        else:
+            row[h] = str(v)
+    return row
+
+
+def _perfect_json_sort_key(d):
+    try:
+        r = -(int(d.get('회차') or 0))
+        s = int(d.get('세트') or 0)
+        gn = int(d.get('게임') or 0)
+        return (r, s, gn)
+    except (ValueError, TypeError):
+        return (0, 0, 0)
+
+
+@app.route('/api/save-perfect', methods=['POST', 'OPTIONS'])
+def api_save_perfect():
+    """B of B 후보를 .source/perfect.json에 요청 games로 전체 교체 (Lotto023과 동일 표준 키)."""
+    if request.method == 'OPTIONS':
+        return '', 204, CORS_OPTIONS_HEADERS
+
+    try:
+        data = request.get_json(silent=True)
+        if not data or 'games' not in data:
+            return jsonify(returnValue='fail', error='games 배열이 필요합니다.'), 400, CORS_HEADERS
+
+        games = data['games']
+        if not isinstance(games, list):
+            return jsonify(returnValue='fail', error='games는 배열이어야 합니다.'), 400, CORS_HEADERS
+
+        source_dir = BASE_DIR / '.source'
+        source_dir.mkdir(parents=True, exist_ok=True)
+        json_path = (source_dir / 'perfect.json').resolve()
+        canon = list(LOTTO023_CANONICAL_HEADERS)
+
+        out_games = []
+        for g in games:
+            if not _lotto023_pick_valid(g):
+                return jsonify(
+                    returnValue='fail',
+                    error='perfect.json: 유효하지 않은 선택 번호가 있습니다. (회차 %s)' % g.get('회차', '?'),
+                ), 400, CORS_HEADERS
+            row = _perfect_json_row_dict_from_game(g, canon)
+            if row:
+                out_games.append(row)
+
+        out_games.sort(key=_perfect_json_sort_key)
+
+        payload = {'games': out_games}
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+        return jsonify(
+            returnValue='success',
+            count=len(out_games),
+            savedRelativePath='.source/perfect.json',
+        ), 200, CORS_HEADERS
+
+    except PermissionError:
+        return jsonify(returnValue='fail', error='B of B 후보(perfect.json) 파일을 쓸 수 없습니다. 다른 프로그램에서 사용 중일 수 있습니다.'), 200, CORS_HEADERS
+    except Exception as e:
+        logger.error('[perfect.json] 저장 오류: %s', e)
         return jsonify(returnValue='fail', error=str(e)), 200, CORS_HEADERS
 
 
